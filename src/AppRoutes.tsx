@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, Navigate } from "react-router-dom";
 import LandingPage from "./features/home/components/LandingPage";
 import Login from "./features/security/components/Login";
 import Layout from "../src/components/Layout";
@@ -19,20 +19,20 @@ import ListTipoEmpleado from "./features/param/components/ListTipoEmpleado";
 import ListTipoConsolidacion from "./features/param/components/ListTipoConsolidacion";
 import ListTipoGarantia from "./features/param/components/ListTipoGarantia";
 import ListTipoContratacion from "./features/param/components/ListTipoContratacion";
-//import { isAuthenticated } from "./utils/auth";
-
-// function ProtectedRoute({ children }: { children: React.ReactNode }) {
-//   if (!isAuthenticated()) {
-//     return <Navigate to="/login" replace />;
-//   }
-//   return <>{children}</>;
-// }
+import ListUsers from "./features/security/components/ListUsers";
+import PasswordChange from "./features/security/components/PasswordChange.tsx";
 
 export default function AppRoutes() {
   return (
     <Routes>
+      {/* Redirect root to login */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+
+      {/* Login route (outside layout) */}
       <Route path="/login" element={<Login />} />
-      <Route path="/" element={<Layout />}>
+
+      {/* Main app routes with layout */}
+      <Route path="/app" element={<Layout />}>
         <Route index element={<LandingPage />} />
         <Route path="lista-calidad-deudor" element={<ListCalidadDeudor />} />
         <Route
@@ -72,7 +72,12 @@ export default function AppRoutes() {
           path="lista-tipo-recuperacion"
           element={<ListTipoRecuperacion />}
         />
+        <Route path="lista-usuarios" element={<ListUsers />} />
+        <Route path="cambiar-contrasena" element={<PasswordChange />} />
       </Route>
+
+      {/* Catch all - redirect to login */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }

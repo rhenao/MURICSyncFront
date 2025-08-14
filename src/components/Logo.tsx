@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 export default function Logo() {
   return (
     <Link
-      to="/"
+      to="/app"
       style={{
         textDecoration: "inherit",
         color: "inherit",
@@ -22,10 +22,10 @@ export default function Logo() {
       >
         <Box
           component="img"
-          src="/logoTitularice.png"
+          src="/logoTitulariceHor.png"
           alt="Shipping Dashboard Logo"
-          width="10.6em"
-          height="8.0em"
+          width="15.6em"
+          height="5.0em"
         />
       </Box>
     </Link>

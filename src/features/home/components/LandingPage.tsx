@@ -10,9 +10,7 @@ export default function LandingPage() {
       justifyContent="center"
       minHeight="60vh"
     >
-      <Typography variant="h3" gutterBottom>
-        Bienvenido a MURICSync 1.0
-      </Typography>
+      <Typography variant="h3" gutterBottom textAlign="center"></Typography>
     </Box>
   );
 }

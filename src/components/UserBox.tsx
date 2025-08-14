@@ -15,6 +15,8 @@ import PersonOutlineTwoToneIcon from "@mui/icons-material/PersonOutlineTwoTone";
 import SettingsTwoToneIcon from "@mui/icons-material/SettingsTwoTone";
 import Logout from "@mui/icons-material/Logout";
 import UserAvatar from "./UserAvatar.tsx";
+import { useNavigate } from "react-router-dom";
+import AuthService from "../features/security/services/AuthService.ts";
 
 const UserButton = styled(Button)(() => ({
   all: "inherit",
@@ -68,12 +70,18 @@ const StyledMenu = styled((props: MenuProps) => (
 
 export default function Userbox() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const navigate = useNavigate();
   const open = Boolean(anchorEl);
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
   const handleClose = () => {
     setAnchorEl(null);
+  };
+  const handleLogout = () => {
+    setAnchorEl(null);
+    AuthService.logout(); // Limpia el localStorage
+    navigate("/login");
   };
 
   return (
@@ -103,7 +111,7 @@ export default function Userbox() {
           Configuración
         </MenuItem>
         <Divider sx={{ my: 0.5 }} />
-        <MenuItem onClick={handleClose} disableRipple>
+        <MenuItem onClick={handleLogout} disableRipple>
           <Logout />
           Cerrar sesión
         </MenuItem>

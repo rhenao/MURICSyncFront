@@ -2,24 +2,37 @@ import { createTheme } from '@mui/material/styles';
 
 const theme = createTheme({
   palette: {
+    mode: 'light',
     primary: {
-      main: '#254092',
-       // Azul corporativo oscuro
+      main: '#254092', // Azul corporativo oscuro
+      contrastText: '#ffffff',
     },
     secondary: {
-      main: '#00897b', // Verde sobrio
+      main: '#0072CE', // Azul claro complementario
     },
     background: {
-      default: '#f4f6f8', // Gris claro para fondo
-      paper: '#fff',
+      default: '#f4f6f8',
+      paper: '#ffffff',
     },
     text: {
-      primary: '#212121',
-      secondary: '#424242',
+      primary: '#1a1a1a',
+      secondary: '#4f4f4f',
+    },
+    error: {
+      main: '#d32f2f',
+    },
+    warning: {
+      main: '#f57c00',
+    },
+    success: {
+      main: '#388e3c',
+    },
+    info: {
+      main: '#0288d1',
     },
   },
   typography: {
-    fontFamily: 'Roboto, Open Sans, Arial, sans-serif',
+    fontFamily: 'Segoe UI, Roboto, Arial, sans-serif',    
     fontSize: 11, // Cambia este valor para ajustar el tamaño base (por defecto es 14)
     h1: { fontWeight: 700 },
     h2: { fontWeight: 600 },
@@ -41,10 +54,23 @@ const theme = createTheme({
         },
       },
     },
+    MuiTextField: {
+      defaultProps: {
+        variant: 'outlined',
+      },
+    },
     MuiPaper: {
       styleOverrides: {
         root: {
+          elevation: 2,
           borderRadius: 8,
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#f4f6f8', // Mismo gris claro que background.default
         },
       },
     },

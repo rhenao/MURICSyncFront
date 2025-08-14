@@ -63,6 +63,9 @@ export default function ListIndicadorVictima() {
         enableColumnFilters={false}
         enableSorting={true}
         enablePagination={false}
+        muiTableProps={{
+          size: "small", // Esta es la prop clave para alta densidad
+        }}
         muiTableBodyRowProps={{ hover: true }}
         muiTableContainerProps={{
           sx: {
@@ -88,7 +91,7 @@ export default function ListIndicadorVictima() {
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Lista de Indicador Victima
+            Tabla - Indicador Victima
           </Typography>
         )}
       />

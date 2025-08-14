@@ -50,7 +50,7 @@ export function Menu() {
       <Logo />
       <DividerLine />
       <List component="nav" sx={{ width: "100%" }}>
-        <Banner> MURIC Sync v1.0</Banner>
+        <Banner></Banner>
         {/* Primer nivel: Seguridad */}
         <ListItemButton
           onClick={() => setOpenAdminSeguridad(!openAdminSeguridad)}
@@ -62,12 +62,22 @@ export function Menu() {
           {openAdminSeguridad ? <ExpandLess /> : <ExpandMore />}
         </ListItemButton>
         <Collapse in={openAdminSeguridad} timeout="auto" unmountOnExit>
-          <List component="div" disablePadding>
-            <ListItemButton component={NavLink} to="/usuarios" sx={{ pl: 4 }}>
-              <ListItemText primary="Usuarios" />
+          <List component="div" disablePadding dense>
+            <ListItemButton
+              component={NavLink}
+              to="lista-usuarios"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="AdministraciónUsuarios" />
             </ListItemButton>
-            <ListItemButton component={NavLink} to="/roles" sx={{ pl: 4 }}>
-              <ListItemText primary="Roles" />
+            <ListItemButton
+              component={NavLink}
+              to="cambiar-contrasena"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Cambio de contraseña" />
             </ListItemButton>
           </List>
         </Collapse>
@@ -81,123 +91,140 @@ export function Menu() {
           {openAdmin ? <ExpandLess /> : <ExpandMore />}
         </ListItemButton>
         <Collapse in={openAdmin} timeout="auto" unmountOnExit>
-          <List component="div" disablePadding>
+          <List component="div" disablePadding dense>
             <ListItemButton
               component={NavLink}
-              to="/lista-calidad-deudor"
-              sx={{ pl: 4 }}
+              to="lista-calidad-deudor"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Calidad Deudor" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-calificacion-credito"
-              sx={{ pl: 4 }}
+              to="lista-calificacion-credito"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Calificación Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-condicion-bien"
-              sx={{ pl: 4 }}
+              to="lista-condicion-bien"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Condición de un Bien" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-destino-credito"
-              sx={{ pl: 4 }}
+              to="lista-destino-credito"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Destino Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-estado-credito"
-              sx={{ pl: 4 }}
+              to="lista-estado-credito"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Estado Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-estado-registro"
-              sx={{ pl: 4 }}
+              to="lista-estado-registro"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Estado Registro" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-franquisia-credito"
-              sx={{ pl: 4 }}
+              to="lista-franquisia-credito"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Franquisia Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-indicador-victima"
-              sx={{ pl: 4 }}
+              to="lista-indicador-victima"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Indicador Victima" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-modalidad"
-              sx={{ pl: 4 }}
+              to="lista-modalidad"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Modalidad" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-modelo-provisiones"
-              sx={{ pl: 4 }}
+              to="lista-modelo-provisiones"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Modelo Provisiones" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-periodo-gracia"
-              sx={{ pl: 4 }}
+              to="lista-periodo-gracia"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Periodo Gracia" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-tamano-empresa"
-              sx={{ pl: 4 }}
+              to="lista-tamano-empresa"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tamaño Empresa" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-tipo-consolidacion"
-              sx={{ pl: 4 }}
+              to="lista-tipo-consolidacion"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tipo Consolidación" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-tipo-contratacion"
-              sx={{ pl: 4 }}
+              to="lista-tipo-contratacion"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tipo Contratación" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-tipo-empleado"
-              sx={{ pl: 4 }}
+              to="lista-tipo-empleado"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tipo Empleado" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-tipo-garantia"
-              sx={{ pl: 4 }}
+              to="lista-tipo-garantia"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tipo Garantía" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/lista-tipo-recuperacion"
-              sx={{ pl: 4 }}
+              to="lista-tipo-recuperacion"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tipo Recuperación" />
             </ListItemButton>
@@ -205,7 +232,7 @@ export function Menu() {
         </Collapse>
 
         {/* Primer nivel: Cargue de archivos */}
-        <ListItemButton component={NavLink} to="/informes">
+        <ListItemButton component={NavLink} to="informes" relative="route">
           <ListItemIcon>
             <FileUpload color="primary" />
           </ListItemIcon>
@@ -222,13 +249,28 @@ export function Menu() {
         </ListItemButton>
         <Collapse in={openSendMuric} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
-            <ListItemButton component={NavLink} to="/muric001" sx={{ pl: 4 }}>
+            <ListItemButton
+              component={NavLink}
+              to="muric001"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
               <ListItemText primary="Información general de los créditos" />
             </ListItemButton>
-            <ListItemButton component={NavLink} to="/muric002" sx={{ pl: 4 }}>
+            <ListItemButton
+              component={NavLink}
+              to="muric002"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
               <ListItemText primary="Atributos de los créditos y deudores" />
             </ListItemButton>
-            <ListItemButton component={NavLink} to="/muric003" sx={{ pl: 4 }}>
+            <ListItemButton
+              component={NavLink}
+              to="muric003"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
               <ListItemText primary="Movimientos de cartera" />
             </ListItemButton>
           </List>
@@ -244,10 +286,20 @@ export function Menu() {
         </ListItemButton>
         <Collapse in={openReports} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
-            <ListItemButton component={NavLink} to="/procesos" sx={{ pl: 4 }}>
+            <ListItemButton
+              component={NavLink}
+              to="procesos"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
               <ListItemText primary="Procesos" />
             </ListItemButton>
-            <ListItemButton component={NavLink} to="/tareas" sx={{ pl: 4 }}>
+            <ListItemButton
+              component={NavLink}
+              to="tareas"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
               <ListItemText primary="Tareas" />
             </ListItemButton>
           </List>

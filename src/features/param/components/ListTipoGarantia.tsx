@@ -62,6 +62,9 @@ export default function ListTipoGarantia() {
         enableColumnFilters={false}
         enableSorting={true}
         enablePagination={false}
+        muiTableProps={{
+          size: "small", // Esta es la prop clave para alta densidad
+        }}
         muiTableBodyRowProps={{ hover: true }}
         muiTableContainerProps={{
           sx: {
@@ -71,6 +74,9 @@ export default function ListTipoGarantia() {
             maxWidth: "100vw",
             alignItems: "flex-start",
             backgroundColor: "background.paper",
+            maxHeight: "65vh", // Altura máxima antes de activar scroll
+            overflowY: "auto", // Scroll vertical
+            overflowX: "auto", // Scroll horizontal si es necesario
           },
         }}
         muiTablePaperProps={{
@@ -87,7 +93,7 @@ export default function ListTipoGarantia() {
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Lista de Tipo Garantía
+            Tabla - Tipo Garantía
           </Typography>
         )}
       />

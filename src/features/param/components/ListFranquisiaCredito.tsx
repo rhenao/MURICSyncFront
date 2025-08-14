@@ -63,6 +63,9 @@ export default function ListFranquisiaCredito() {
         enableColumnFilters={false}
         enableSorting={true}
         enablePagination={false}
+        muiTableProps={{
+          size: "small", // Esta es la prop clave para alta densidad
+        }}
         muiTableBodyRowProps={{ hover: true }}
         muiTableContainerProps={{
           sx: {
@@ -72,6 +75,9 @@ export default function ListFranquisiaCredito() {
             maxWidth: "100vw",
             alignItems: "flex-start",
             backgroundColor: "background.paper",
+            maxHeight: "65vh", // Altura máxima antes de activar scroll
+            overflowY: "auto", // Scroll vertical
+            overflowX: "auto", // Scroll horizontal si es necesario
           },
         }}
         muiTablePaperProps={{
@@ -88,7 +94,7 @@ export default function ListFranquisiaCredito() {
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Lista de Franquisia Crédito
+            Tabla - Franquisia Crédito
           </Typography>
         )}
       />

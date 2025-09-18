@@ -10,6 +10,7 @@ import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useNavigate } from "react-router-dom";
 import AuthService from "../services/AuthService";
+import ForgotPassword from "./ForgotPassword";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -17,6 +18,7 @@ export default function Login() {
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [openForgotPassword, setOpenForgotPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,98 +67,119 @@ export default function Login() {
     }
   };
 
-  return (
-    <Box
-      sx={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "background.default",
-        zIndex: 1,
-      }}
-    >
-      <Typography variant="h3" gutterBottom color="primary" align="center">
-        MURIC Sync v1.0
-      </Typography>
-      <Typography variant="h5" gutterBottom align="center">
-        Ingreso a la aplicación
-      </Typography>
+  const handleForgotPassword = () => {
+    setOpenForgotPassword(true);
+  };
 
+  const handleCloseForgotPassword = () => {
+    setOpenForgotPassword(false);
+  };
+
+  return (
+    <>
       <Box
-        component="form"
-        onSubmit={handleSubmit}
         sx={{
-          width: 300,
-          maxWidth: "100%",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "background.default",
+          zIndex: 1,
         }}
       >
-        {errors.length > 0 && (
-          <Alert severity="error" sx={{ width: "100%", mb: 2 }}>
-            {errors.map((error, index) => (
-              <div key={index}>{error}</div>
-            ))}
-          </Alert>
-        )}
+        <Typography variant="h3" gutterBottom color="primary" align="center">
+          MURIC Sync v1.0
+        </Typography>
+        <Typography variant="h5" gutterBottom align="center">
+          Ingreso a la aplicación
+        </Typography>
 
-        <TextField
-          label="Usuario"
-          variant="outlined"
-          margin="normal"
-          fullWidth
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          autoFocus
-          disabled={loading}
-          required
-        />
-        <TextField
-          label="Clave"
-          type="password"
-          variant="outlined"
-          margin="normal"
-          fullWidth
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          disabled={loading}
-          required
-        />
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-              color="primary"
-              disabled={loading}
-            />
-          }
-          label="Recordar usuario"
-          sx={{ alignSelf: "flex-start" }}
-        />
-        <Button
-          type="submit"
-          variant="contained"
-          color="primary"
-          fullWidth
-          sx={{ mt: 2 }}
-          disabled={loading || !username || !password}
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          sx={{
+            width: 300,
+            maxWidth: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
         >
-          {loading ? <CircularProgress size={24} /> : "Entrar"}
-        </Button>
-        <Box display="flex" justifyContent="flex-end" width="100%" mt={1}>
-          <Link href="#" variant="body2">
-            ¿Olvidaste tu contraseña?
-          </Link>
+          {errors.length > 0 && (
+            <Alert severity="error" sx={{ width: "100%", mb: 2 }}>
+              {errors.map((error, index) => (
+                <div key={index}>{error}</div>
+              ))}
+            </Alert>
+          )}
+
+          <TextField
+            label="Usuario"
+            variant="outlined"
+            margin="normal"
+            fullWidth
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoFocus
+            disabled={loading}
+            required
+          />
+          <TextField
+            label="Clave"
+            type="password"
+            variant="outlined"
+            margin="normal"
+            fullWidth
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+            required
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                color="primary"
+                disabled={loading}
+              />
+            }
+            label="Recordar usuario"
+            sx={{ alignSelf: "flex-start" }}
+          />
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            fullWidth
+            sx={{ mt: 2 }}
+            disabled={loading || !username || !password}
+          >
+            {loading ? <CircularProgress size={24} /> : "Entrar"}
+          </Button>
+          <Box display="flex" justifyContent="flex-end" width="100%" mt={1}>
+            <Link
+              component="button"
+              type="button"
+              variant="body2"
+              onClick={handleForgotPassword}
+              sx={{ cursor: "pointer" }}
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </Box>
         </Box>
       </Box>
-    </Box>
+
+      <ForgotPassword
+        open={openForgotPassword}
+        onClose={handleCloseForgotPassword}
+      />
+    </>
   );
 }

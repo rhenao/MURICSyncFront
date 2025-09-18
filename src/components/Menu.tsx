@@ -281,26 +281,26 @@ export function Menu() {
           <ListItemIcon>
             <Summarize color="primary" />
           </ListItemIcon>
-          <ListItemText primary="Reportes" />
+          <ListItemText primary="Consultas" />
           {openReports ? <ExpandLess /> : <ExpandMore />}
         </ListItemButton>
         <Collapse in={openReports} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
             <ListItemButton
               component={NavLink}
-              to="procesos"
+              to="archivos-cargados"
               relative="route"
               sx={{ pl: 15, py: 0.1 }}
             >
-              <ListItemText primary="Procesos" />
+              <ListItemText primary="Archivos Cargados" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="tareas"
+              to="archivos-enviados"
               relative="route"
               sx={{ pl: 15, py: 0.1 }}
             >
-              <ListItemText primary="Tareas" />
+              <ListItemText primary="Archivos Enviados" />
             </ListItemButton>
           </List>
         </Collapse>

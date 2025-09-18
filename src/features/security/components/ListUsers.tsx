@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { MaterialReactTable, type MRT_ColumnDef } from "material-react-table";
 import { Button, Card, Typography, Chip, Box } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";

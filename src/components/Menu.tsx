@@ -232,7 +232,11 @@ export function Menu() {
         </Collapse>
 
         {/* Primer nivel: Cargue de archivos */}
-        <ListItemButton component={NavLink} to="informes" relative="route">
+        <ListItemButton
+          component={NavLink}
+          to="carga-archivos"
+          relative="route"
+        >
           <ListItemIcon>
             <FileUpload color="primary" />
           </ListItemIcon>

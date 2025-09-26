@@ -21,6 +21,7 @@ import ListTipoGarantia from "./features/param/components/ListTipoGarantia";
 import ListTipoContratacion from "./features/param/components/ListTipoContratacion";
 import ListUsers from "./features/security/components/ListUsers";
 import PasswordChange from "./features/security/components/PasswordChange.tsx";
+import CargaArchivos from "./features/upload/components/CargaArchivos.tsx";
 
 export default function AppRoutes() {
   return (
@@ -74,6 +75,7 @@ export default function AppRoutes() {
         />
         <Route path="lista-usuarios" element={<ListUsers />} />
         <Route path="cambiar-contrasena" element={<PasswordChange />} />
+        <Route path="carga-archivos" element={<CargaArchivos />} />
       </Route>
 
       {/* Catch all - redirect to login */}

@@ -91,7 +91,7 @@ export default function ListTipoRecuperacion() {
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Tabla - Tipo Recuperación
+            Tabla - Tipo de Recuperación
           </Typography>
         )}
       />

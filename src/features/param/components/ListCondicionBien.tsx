@@ -90,7 +90,7 @@ export default function ListCondicionBien() {
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Tabla - Condición de un Bien
+            Tabla - Condición Bien
           </Typography>
         )}
       />

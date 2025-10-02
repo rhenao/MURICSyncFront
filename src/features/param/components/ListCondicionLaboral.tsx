@@ -3,7 +3,7 @@ import type TipoEmpleado from "../models/TipoEmpleado.model";
 import { MaterialReactTable, type MRT_ColumnDef } from "material-react-table";
 import { Button, Card, Typography } from "@mui/material";
 
-export default function ListTipoEmpleado() {
+export default function ListCondicionLaboral() {
   const { entidades, cargando } = useEntidades<TipoEmpleado>("/TipoEmpleado");
 
   const columns: MRT_ColumnDef<TipoEmpleado>[] = [
@@ -90,7 +90,7 @@ export default function ListTipoEmpleado() {
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Tabla - Tipo Empleado
+            Tabla - Condición Laboral
           </Typography>
         )}
       />

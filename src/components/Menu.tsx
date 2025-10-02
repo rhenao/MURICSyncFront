@@ -69,7 +69,7 @@ export function Menu() {
               relative="route"
               sx={{ pl: 15, py: 0.1 }}
             >
-              <ListItemText primary="AdministraciónUsuarios" />
+              <ListItemText primary="Administración de usuarios" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
@@ -94,6 +94,14 @@ export function Menu() {
           <List component="div" disablePadding dense>
             <ListItemButton
               component={NavLink}
+              to="lista-antiguedad-empresa"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Antigüedad Empresa" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
               to="lista-calidad-deudor"
               relative="route"
               sx={{ pl: 15, py: 0.1 }}
@@ -110,11 +118,27 @@ export function Menu() {
             </ListItemButton>
             <ListItemButton
               component={NavLink}
+              to="lista-clase-de-deudor"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Clase de Deudor" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
               to="lista-condicion-bien"
               relative="route"
               sx={{ pl: 15, py: 0.1 }}
             >
-              <ListItemText primary="Condición de un Bien" />
+              <ListItemText primary="Condición Bien" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="lista-condicion-laboral"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Condición Laboral" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
@@ -122,7 +146,7 @@ export function Menu() {
               relative="route"
               sx={{ pl: 15, py: 0.1 }}
             >
-              <ListItemText primary="Destino Crédito" />
+              <ListItemText primary="Destino del Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
@@ -130,7 +154,7 @@ export function Menu() {
               relative="route"
               sx={{ pl: 15, py: 0.1 }}
             >
-              <ListItemText primary="Estado Crédito" />
+              <ListItemText primary="Estado del Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
@@ -150,6 +174,14 @@ export function Menu() {
             </ListItemButton>
             <ListItemButton
               component={NavLink}
+              to="lista-grupo-etnico"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Grupo Étnico" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
               to="lista-indicador-victima"
               relative="route"
               sx={{ pl: 15, py: 0.1 }}
@@ -162,7 +194,7 @@ export function Menu() {
               relative="route"
               sx={{ pl: 15, py: 0.1 }}
             >
-              <ListItemText primary="Modalidad" />
+              <ListItemText primary="Modalidades de Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
@@ -170,7 +202,7 @@ export function Menu() {
               relative="route"
               sx={{ pl: 15, py: 0.1 }}
             >
-              <ListItemText primary="Modelo Provisiones" />
+              <ListItemText primary="Modelo de Provisiones" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
@@ -178,7 +210,31 @@ export function Menu() {
               relative="route"
               sx={{ pl: 15, py: 0.1 }}
             >
-              <ListItemText primary="Periodo Gracia" />
+              <ListItemText primary="Periodo de Gracia" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="lista-plazo-credito"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Plazo Crédito" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="lista-producto-credito"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Producto Crédito" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="lista-rango-por-monto"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Rango por Monto" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
@@ -190,11 +246,11 @@ export function Menu() {
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-tipo-consolidacion"
+              to="lista-tipo-credito"
               relative="route"
               sx={{ pl: 15, py: 0.1 }}
             >
-              <ListItemText primary="Tipo Consolidación" />
+              <ListItemText primary="Tipo Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
@@ -206,11 +262,19 @@ export function Menu() {
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-tipo-empleado"
+              to="lista-tipo-consolidacion"
               relative="route"
               sx={{ pl: 15, py: 0.1 }}
             >
-              <ListItemText primary="Tipo Empleado" />
+              <ListItemText primary="Tipo de Consolidación" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="lista-tipo-recuperacion"
+              relative="route"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Tipo de Recuperación" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
@@ -222,11 +286,11 @@ export function Menu() {
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-tipo-recuperacion"
+              to="lista-tipo-poliza"
               relative="route"
               sx={{ pl: 15, py: 0.1 }}
             >
-              <ListItemText primary="Tipo Recuperación" />
+              <ListItemText primary="Tipo Póliza" />
             </ListItemButton>
           </List>
         </Collapse>

@@ -1,12 +1,13 @@
 import { useEntidades } from "../../../hooks/useEntidades";
-import type EstadoCredito from "../models/EstadoCredito.model";
+import type AntiguedadEmpresa from "../models/AntiguedadEmpresa.model";
 import { MaterialReactTable, type MRT_ColumnDef } from "material-react-table";
 import { Button, Card, Typography } from "@mui/material";
 
-export default function ListEstadoCredito() {
-  const { entidades, cargando } = useEntidades<EstadoCredito>("/EstadoCredito");
+export default function ListAntiguedadEmpresa() {
+  const { entidades, cargando } =
+    useEntidades<AntiguedadEmpresa>("/AntiguedadEmpresa");
 
-  const columns: MRT_ColumnDef<EstadoCredito>[] = [
+  const columns: MRT_ColumnDef<AntiguedadEmpresa>[] = [
     {
       accessorKey: "Codigo",
       header: "Código",
@@ -15,30 +16,32 @@ export default function ListEstadoCredito() {
     {
       accessorKey: "Descripcion",
       header: "Descripción",
-      size: 240,
+      size: 320,
     },
     {
-      accessorKey: "descripcionDetallada",
+      accessorKey: "DescripcionDetallada",
       header: "Descripción Detallada",
-      size: 480,
+      size: 420,
+      Cell: ({ cell }) => cell.getValue<string>() ?? "–",
     },
     {
       header: "Acciones",
+      size: 60,
       Cell: ({ row }) => (
         <Button
+          variant="contained"
+          disabled
           sx={{
             fontSize: "0.875rem",
             minWidth: 0,
             px: 1,
             backgroundColor: "primary.main",
           }}
-          variant="contained"
           onClick={() => alert(`Editar ${row.original.descripcion}`)}
         >
           Editar
         </Button>
       ),
-      size: 60,
     },
   ];
 
@@ -65,10 +68,10 @@ export default function ListEstadoCredito() {
         state={{ isLoading: cargando }}
         enableColumnActions={false}
         enableColumnFilters={false}
-        enableSorting={true}
+        enableSorting
         enablePagination={false}
         muiTableProps={{
-          size: "small", // Esta es la prop clave para alta densidad
+          size: "small",
         }}
         muiTableBodyRowProps={{ hover: true }}
         muiTableContainerProps={{
@@ -79,9 +82,6 @@ export default function ListEstadoCredito() {
             maxWidth: "100vw",
             alignItems: "flex-start",
             backgroundColor: "background.paper",
-            maxHeight: "70vh", // Altura máxima antes de activar scroll
-            overflowY: "auto", // Scroll vertical
-            overflowX: "auto", // Scroll horizontal si es necesario
           },
         }}
         muiTablePaperProps={{
@@ -98,7 +98,7 @@ export default function ListEstadoCredito() {
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Tabla - Estado del Crédito
+            Tabla - Antigüedad Empresa
           </Typography>
         )}
       />

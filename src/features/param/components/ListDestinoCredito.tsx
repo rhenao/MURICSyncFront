@@ -91,7 +91,7 @@ export default function ListDestinoCredito() {
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Tabla - Destino Crédito
+            Tabla - Destino del Crédito
           </Typography>
         )}
       />

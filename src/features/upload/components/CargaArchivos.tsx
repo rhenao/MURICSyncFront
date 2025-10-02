@@ -34,6 +34,17 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import Paper from "@mui/material/Paper";
 import Box from "@mui/material/Box";
 import ResultadoCargue from "./ResultadoCargue";
+import * as XLSX from "xlsx";
+import {
+  //type ArchivosCarga,
+  type ArchivosCargaDetalle,
+  type MetadatosCarga,
+  //type RegistroAuditoria,
+  type VersionArchivo,
+  crearArchivoCarga,
+  crearDetalleCarga,
+  crearRegistroAuditoria,
+} from "../models/UploadModels";
 
 type UploadStatus =
   | "Sin archivo"
@@ -47,7 +58,8 @@ interface FileSummary {
   name: string;
   sizeBytes: number;
   lines: number;
-  contentPreview: string[]; // primeras n líneas
+  contentPreview: string[];
+  content: string[]; // primeras n líneas
 }
 
 interface Empresa {
@@ -59,14 +71,14 @@ interface Empresa {
 const empresasPrueba: Empresa[] = [
   { codigo: "001", nombre: "Ban100" },
   { codigo: "002", nombre: "Compensar" },
-  { codigo: "003", nombre: "Bancolombia" },
-  { codigo: "004", nombre: "Banco de Bogotá" },
-  { codigo: "005", nombre: "Banco Popular" },
-  { codigo: "006", nombre: "BBVA" },
-  { codigo: "007", nombre: "Banco Caja Social" },
-  { codigo: "008", nombre: "Banco Agrario de Colombia" },
-  { codigo: "009", nombre: "Banco AV Villas" },
-  { codigo: "010", nombre: "Banco Cooperativo Coopcentral" },
+  // { codigo: "003", nombre: "Bancolombia" },
+  // { codigo: "004", nombre: "Banco de Bogotá" },
+  // { codigo: "005", nombre: "Banco Popular" },
+  // { codigo: "006", nombre: "BBVA" },
+  // { codigo: "007", nombre: "Banco Caja Social" },
+  // { codigo: "008", nombre: "Banco Agrario de Colombia" },
+  // { codigo: "009", nombre: "Banco AV Villas" },
+  // { codigo: "010", nombre: "Banco Cooperativo Coopcentral" },
 ];
 
 // Función para obtener el último día del mes anterior
@@ -101,6 +113,9 @@ export default function CargaArchivos() {
 
   // preview rows for grid
   const [previewRows, setPreviewRows] = useState<Record<string, string>[]>([]);
+  const [detallesCarga, setDetallesCarga] = useState<ArchivosCargaDetalle[]>(
+    []
+  );
 
   const openFilePicker = () => fileInputRef.current?.click();
 
@@ -130,22 +145,74 @@ export default function CargaArchivos() {
     return new Promise<FileSummary>((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = () => reject(new Error("Error leyendo el archivo"));
+
       reader.onload = () => {
-        const text = String(reader.result ?? "");
-        // Normalize line breaks
-        const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-        const lines =
-          normalized.length === 0 ? 0 : normalized.split("\n").length;
-        const preview = normalized.split("\n").slice(0, 10);
-        resolve({
-          name: file.name,
-          sizeBytes: file.size,
-          lines,
-          contentPreview: preview,
-        });
+        try {
+          const data = reader.result;
+          let rows: string[][] = [];
+          let lines = 0;
+
+          // Determinar tipo de archivo
+          const isExcel =
+            file.name.toLowerCase().endsWith(".xlsx") ||
+            file.name.toLowerCase().endsWith(".xls");
+
+          if (isExcel) {
+            // Procesar archivo Excel
+            const workbook = XLSX.read(data, { type: "array" });
+            const sheetName = workbook.SheetNames[0]; // Primera hoja
+            const worksheet = workbook.Sheets[sheetName];
+
+            // Convertir a array de arrays
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+              header: 1,
+              defval: "",
+            }) as string[][];
+
+            rows = jsonData;
+            lines = jsonData.length;
+          } else {
+            // Procesar archivo CSV/TXT
+            const text = String(data ?? "");
+            const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+            const textRows = normalized.split("\n");
+            lines = textRows.length;
+
+            // Convertir CSV a array de arrays
+            rows = textRows.map((line) => {
+              // Simple CSV parser (para casos complejos usar papaparse)
+              return line
+                .split(",")
+                .map((cell) => cell.trim().replace(/"/g, ""));
+            });
+          }
+
+          // Tomar las primeras 10 filas para preview
+          const preview = rows.slice(0, 10).map((row) => row.join(","));
+          const content = rows.map((row) => row.join(","));
+
+          resolve({
+            name: file.name,
+            sizeBytes: file.size,
+            lines,
+            contentPreview: preview,
+            content,
+          });
+        } catch (err) {
+          reject(new Error(`Error procesando archivo: ${err}`));
+        }
       };
-      // For simplicity support CSV / text. Excel (.xlsx) requires xlsx lib.
-      reader.readAsText(file);
+
+      // Leer como ArrayBuffer para Excel o como texto para CSV
+      const isExcel =
+        file.name.toLowerCase().endsWith(".xlsx") ||
+        file.name.toLowerCase().endsWith(".xls");
+
+      if (isExcel) {
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.readAsText(file, "UTF-8");
+      }
     });
   };
 
@@ -153,27 +220,154 @@ export default function CargaArchivos() {
     if (!selectedFile) return;
     setLoading(true);
     setValidationErrors([]);
+
     try {
+      // Validar tipo de archivo
+      const allowedTypes = [".csv", ".txt", ".xlsx", ".xls"];
+      const fileExtension = selectedFile.name
+        .toLowerCase()
+        .substring(selectedFile.name.lastIndexOf("."));
+
+      if (!allowedTypes.includes(fileExtension)) {
+        throw new Error(
+          `Tipo de archivo no soportado: ${fileExtension}. Tipos permitidos: ${allowedTypes.join(
+            ", "
+          )}`
+        );
+      }
+
+      // Validar tamaño del archivo (máximo 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (selectedFile.size > maxSize) {
+        throw new Error(
+          `El archivo es demasiado grande. Tamaño máximo permitido: ${
+            maxSize / (1024 * 1024)
+          }MB`
+        );
+      }
+
       const summary = await countLinesAndPreview(selectedFile);
       setFileSummary(summary);
-      // produce previewRows as simple CSV split (naive)
-      const rows = summary.contentPreview.map((line) => {
+      console.log("Resumen del archivo:", summary);
+      // Generar número de proceso si no existe
+      const numeroProceso =
+        processNumber || Math.floor(Math.random() * 900000) + 100000;
+      setProcessNumber(numeroProceso);
+
+      // Crear metadatos
+      const metadatos: MetadatosCarga = {
+        fechaCargue,
+        fechaCorte,
+        codigoEmpresa,
+        nombreEmpresa,
+        numeroProceso,
+        totalLineas: summary.lines,
+        extensionArchivo: fileExtension,
+        tamanoOriginal: selectedFile.size,
+      };
+
+      // Crear modelo ArchivoSubida usando función utilitaria
+      const archivoCarga = crearArchivoCarga(
+        selectedFile,
+        metadatos,
+        "usuario@ejemplo.com" // TODO: obtener del contexto
+      );
+
+      // Crear detalles de carga
+      const detallesCarga: ArchivosCargaDetalle[] = [];
+      const allRows = summary.content;
+
+      for (let i = 0; i < allRows.length; i++) {
+        const cols = allRows[i].split(",");
+        const datosCrudos: Record<string, unknown> = {};
+
+        cols.forEach((valor, indiceCol) => {
+          datosCrudos[`col${indiceCol + 1}`] = valor.trim();
+        });
+
+        const detalleCarga = crearDetalleCarga(
+          archivoCarga.idArchivo,
+          i + 1,
+          datosCrudos
+        );
+        detallesCarga.push(detalleCarga);
+      }
+
+      // Crear registro de auditoría
+      const registroAuditoria = crearRegistroAuditoria(
+        "usuario@ejemplo.com",
+        "SUBIDA_CREAR",
+        `Archivo cargado: ${selectedFile.name} con ${summary.lines} líneas`,
+        {
+          nombreArchivo: selectedFile.name,
+          tamanoArchivo: selectedFile.size,
+          empresa: codigoEmpresa,
+          numeroProceso,
+        }
+      );
+
+      // Crear versión del archivo
+      const versionArchivo: VersionArchivo = {
+        idArchivoSubida: archivoCarga.idArchivo,
+        version: 1,
+        fechaCreacion: new Date().toISOString(),
+        creadoPor: "usuario@ejemplo.com",
+        rutaArchivo: archivoCarga.ruta ?? "N/A",
+        notas: `Versión inicial - Carga desde ${fileExtension.toUpperCase()}`,
+      };
+
+      // Actualizar estado de la UI
+      const rows = summary.content.map((line, index) => {
         const cols = line.split(",");
         const obj: Record<string, string> = {};
-        cols.forEach((c, i) => (obj[`col${i + 1}`] = c.trim()));
+
+        if (index === 0) {
+          cols.forEach((c, i) => (obj[`${c || `col${i + 1}`}`] = c.trim()));
+        } else {
+          cols.forEach((c, i) => (obj[`col${i + 1}`] = c.trim()));
+        }
         return obj;
       });
+
       setPreviewRows(rows);
       setStatus("Cargado");
-      // assign a process number if not present
-      if (!processNumber) {
-        setProcessNumber(Math.floor(Math.random() * 900000) + 100000); // ejemplo
-      }
-      // TODO: llamar API para subir file (multipart/form-data) y crear UploadFile
+      setDetallesCarga(detallesCarga);
+
+      // Preparar datos para envío al backend
+      const datosCarga = {
+        archivoCarga,
+        detallesCarga,
+        registroAuditoria,
+        versionArchivo,
+        metadatos,
+      };
+
+      console.log("Datos preparados para envío al backend:", datosCarga);
+
+      // TODO: Enviar al servicio backend
+      // await servicioSubidaArchivos.crear(datosCarga);
     } catch (err) {
-      console.error(err);
-      setValidationErrors(["Error al leer el archivo"]);
+      console.error("Error cargando archivo:", err);
+      const mensajeError =
+        err instanceof Error
+          ? err.message
+          : "Error desconocido al leer el archivo";
+      setValidationErrors([mensajeError]);
       setStatus("Error");
+
+      // Crear registro de error en auditoría
+      const registroError = crearRegistroAuditoria(
+        "usuario@ejemplo.com",
+        "SUBIDA_ERROR",
+        `Error al cargar archivo: ${mensajeError}`,
+        {
+          nombreArchivo: selectedFile?.name,
+          error: mensajeError,
+          tamanoArchivo: selectedFile?.size,
+        }
+      );
+
+      console.log("Registro de error:", registroError);
     } finally {
       setLoading(false);
     }
@@ -190,7 +384,7 @@ export default function CargaArchivos() {
       const errors: string[] = [];
       if (!fechaCargue) errors.push("Fecha de cargue es requerida");
       if (!fechaCorte) errors.push("Fecha de corte es requerida");
-      if (!codigoEmpresa) errors.push("Código de empresa es requerido");
+      if (!codigoEmpresa) errors.push("Código de universalidad esrequerido");
       if (fileSummary.lines === 0) errors.push("El archivo no contiene líneas");
       if (errors.length > 0) {
         setValidationErrors(errors);
@@ -297,7 +491,7 @@ export default function CargaArchivos() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv, text/csv, .txt"
+                accept=".csv, text/csv, .txt, .xlsx, .xls, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
                 onChange={handleFileSelect}
                 style={{ display: "none" }}
                 data-testid="file-input"
@@ -316,14 +510,6 @@ export default function CargaArchivos() {
                     : "No hay archivo seleccionado"}
                 </Typography>
               </Stack>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                display="block"
-                mt={1}
-              >
-                Soporta CSV / TXT. Excel (.xlsx) requiere librería adicional.
-              </Typography>
             </Box>
           </Grid>
 
@@ -373,10 +559,10 @@ export default function CargaArchivos() {
 
           <Grid size={4}>
             <FormControl fullWidth>
-              <InputLabel>Empresa</InputLabel>
+              <InputLabel>Universalidad</InputLabel>
               <Select
                 value={codigoEmpresa}
-                label="Empresa"
+                label="Universalidad"
                 onChange={(e) => handleEmpresaChange(e.target.value)}
                 disabled={loading}
               >
@@ -461,6 +647,15 @@ export default function CargaArchivos() {
             </Alert>
           </Box>
         )}
+
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          display="block"
+          mt={1}
+        >
+          Soporta archivos CSV, TXT y Excel (.xlsx, .xls). Tamaño máximo: 10MB
+        </Typography>
       </Paper>
 
       {/* Información del archivo seleccionado */}
@@ -521,11 +716,11 @@ export default function CargaArchivos() {
                         <TableCell>{fechaCorte || "-"}</TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell>Código empresa</TableCell>
+                        <TableCell>Código universalidad</TableCell>
                         <TableCell>{codigoEmpresa || "-"}</TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell>Nombre empresa</TableCell>
+                        <TableCell>Nombre universalidad</TableCell>
                         <TableCell>{nombreEmpresa || "-"}</TableCell>
                       </TableRow>
                       <TableRow>
@@ -582,7 +777,7 @@ export default function CargaArchivos() {
       </Accordion>
 
       {/* Resultados del proceso de cargue */}
-      <ResultadoCargue />
+      <ResultadoCargue detalles={detallesCarga} />
     </Box>
   );
 }

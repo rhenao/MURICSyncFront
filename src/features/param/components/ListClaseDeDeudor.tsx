@@ -1,12 +1,12 @@
-import { useEntidades } from "../../../hooks/useEntidades";
-import type EstadoCredito from "../models/EstadoCredito.model";
-import { MaterialReactTable, type MRT_ColumnDef } from "material-react-table";
 import { Button, Card, Typography } from "@mui/material";
+import { MaterialReactTable, type MRT_ColumnDef } from "material-react-table";
+import { useEntidades } from "../../../hooks/useEntidades";
+import type ClaseDeDeudor from "../models/ClaseDeDeudor.model";
 
-export default function ListEstadoCredito() {
-  const { entidades, cargando } = useEntidades<EstadoCredito>("/EstadoCredito");
+export default function ListClaseDeDeudor() {
+  const { entidades, cargando } = useEntidades<ClaseDeDeudor>("/ClaseDeDeudor");
 
-  const columns: MRT_ColumnDef<EstadoCredito>[] = [
+  const columns: MRT_ColumnDef<ClaseDeDeudor>[] = [
     {
       accessorKey: "Codigo",
       header: "Código",
@@ -15,15 +15,17 @@ export default function ListEstadoCredito() {
     {
       accessorKey: "Descripcion",
       header: "Descripción",
-      size: 240,
+      size: 320,
     },
     {
-      accessorKey: "descripcionDetallada",
+      accessorKey: "DescripcionDetallada",
       header: "Descripción Detallada",
-      size: 480,
+      size: 420,
+      Cell: ({ cell }) => cell.getValue<string>() ?? "–",
     },
     {
       header: "Acciones",
+      size: 60,
       Cell: ({ row }) => (
         <Button
           sx={{
@@ -38,7 +40,6 @@ export default function ListEstadoCredito() {
           Editar
         </Button>
       ),
-      size: 60,
     },
   ];
 
@@ -65,10 +66,10 @@ export default function ListEstadoCredito() {
         state={{ isLoading: cargando }}
         enableColumnActions={false}
         enableColumnFilters={false}
-        enableSorting={true}
+        enableSorting
         enablePagination={false}
         muiTableProps={{
-          size: "small", // Esta es la prop clave para alta densidad
+          size: "small",
         }}
         muiTableBodyRowProps={{ hover: true }}
         muiTableContainerProps={{
@@ -79,9 +80,6 @@ export default function ListEstadoCredito() {
             maxWidth: "100vw",
             alignItems: "flex-start",
             backgroundColor: "background.paper",
-            maxHeight: "70vh", // Altura máxima antes de activar scroll
-            overflowY: "auto", // Scroll vertical
-            overflowX: "auto", // Scroll horizontal si es necesario
           },
         }}
         muiTablePaperProps={{
@@ -98,7 +96,7 @@ export default function ListEstadoCredito() {
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Tabla - Estado del Crédito
+            Tabla - Clase de Deudor
           </Typography>
         )}
       />

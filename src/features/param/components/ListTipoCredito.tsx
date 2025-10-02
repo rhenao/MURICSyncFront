@@ -1,44 +1,37 @@
-import { useEntidades } from "../../../hooks/useEntidades";
-import type EstadoCredito from "../models/EstadoCredito.model";
-import { MaterialReactTable, type MRT_ColumnDef } from "material-react-table";
 import { Button, Card, Typography } from "@mui/material";
+import { MaterialReactTable, type MRT_ColumnDef } from "material-react-table";
+import { useEntidades } from "../../../hooks/useEntidades";
+import type TipoCredito from "../models/TipoCredito.model";
 
-export default function ListEstadoCredito() {
-  const { entidades, cargando } = useEntidades<EstadoCredito>("/EstadoCredito");
+export default function ListTipoCredito() {
+  const { entidades, cargando } = useEntidades<TipoCredito>("/TipoCredito");
 
-  const columns: MRT_ColumnDef<EstadoCredito>[] = [
+  const columns: MRT_ColumnDef<TipoCredito>[] = [
+    { accessorKey: "Codigo", header: "Código", size: 120 },
+    { accessorKey: "Descripcion", header: "Descripción", size: 320 },
     {
-      accessorKey: "Codigo",
-      header: "Código",
-      size: 120,
-    },
-    {
-      accessorKey: "Descripcion",
-      header: "Descripción",
-      size: 240,
-    },
-    {
-      accessorKey: "descripcionDetallada",
+      accessorKey: "DescripcionDetallada",
       header: "Descripción Detallada",
-      size: 480,
+      size: 420,
+      Cell: ({ cell }) => cell.getValue<string>() ?? "–",
     },
     {
       header: "Acciones",
+      size: 60,
       Cell: ({ row }) => (
         <Button
+          variant="contained"
           sx={{
             fontSize: "0.875rem",
             minWidth: 0,
             px: 1,
             backgroundColor: "primary.main",
           }}
-          variant="contained"
           onClick={() => alert(`Editar ${row.original.descripcion}`)}
         >
           Editar
         </Button>
       ),
-      size: 60,
     },
   ];
 
@@ -65,11 +58,9 @@ export default function ListEstadoCredito() {
         state={{ isLoading: cargando }}
         enableColumnActions={false}
         enableColumnFilters={false}
-        enableSorting={true}
+        enableSorting
         enablePagination={false}
-        muiTableProps={{
-          size: "small", // Esta es la prop clave para alta densidad
-        }}
+        muiTableProps={{ size: "small" }}
         muiTableBodyRowProps={{ hover: true }}
         muiTableContainerProps={{
           sx: {
@@ -79,9 +70,6 @@ export default function ListEstadoCredito() {
             maxWidth: "100vw",
             alignItems: "flex-start",
             backgroundColor: "background.paper",
-            maxHeight: "70vh", // Altura máxima antes de activar scroll
-            overflowY: "auto", // Scroll vertical
-            overflowX: "auto", // Scroll horizontal si es necesario
           },
         }}
         muiTablePaperProps={{
@@ -98,7 +86,7 @@ export default function ListEstadoCredito() {
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Tabla - Estado del Crédito
+            Tabla - Tipo Crédito
           </Typography>
         )}
       />

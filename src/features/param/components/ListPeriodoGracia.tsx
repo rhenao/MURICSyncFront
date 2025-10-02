@@ -90,7 +90,7 @@ export default function ListPeriodoGracia() {
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Tabla - Periodo Gracia
+            Tabla - Periodo de Gracia
           </Typography>
         )}
       />

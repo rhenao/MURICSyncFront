@@ -2,23 +2,31 @@ import { Route, Routes, Navigate } from "react-router-dom";
 import LandingPage from "./features/home/components/LandingPage";
 import Login from "./features/security/components/Login";
 import Layout from "../src/components/Layout";
+import ListAntiguedadEmpresa from "./features/param/components/ListAntiguedadEmpresa";
 import ListCalidadDeudor from "./features/param/components/ListCalidadDeudor";
 import ListCalificacionCredito from "./features/param/components/ListCalificacionCredito";
+import ListClaseDeDeudor from "./features/param/components/ListClaseDeDeudor";
 import ListCondicionBien from "./features/param/components/ListCondicionBien";
+import ListCondicionLaboral from "./features/param/components/ListCondicionLaboral.tsx";
 import ListDestinoCredito from "./features/param/components/ListDestinoCredito";
 import ListEstadoCredito from "./features/param/components/ListEstadoCredito";
 import ListEstadoRegistro from "./features/param/components/ListEstadoRegistro";
 import ListFranquisiaCredito from "./features/param/components/ListFranquisiaCredito";
+import ListGrupoEtnico from "./features/param/components/ListGrupoEtnico";
 import ListIndicadorVictima from "./features/param/components/ListIndicadorVictima";
 import ListModalidad from "./features/param/components/ListModalidad";
 import ListModeloProvisiones from "./features/param/components/ListModeloProvisiones";
 import ListPeriodoGracia from "./features/param/components/ListPeriodoGracia";
+import ListPlazoCredito from "./features/param/components/ListPlazoCredito";
+import ListProductoCredito from "./features/param/components/ListProductoCredito";
+import ListRangoPorMonto from "./features/param/components/ListRangoPorMonto";
 import ListTamanoEmpresa from "./features/param/components/ListTamanoEmpresa";
-import ListTipoRecuperacion from "./features/param/components/ListTipoRecuperacion";
-import ListTipoEmpleado from "./features/param/components/ListTipoEmpleado";
 import ListTipoConsolidacion from "./features/param/components/ListTipoConsolidacion";
-import ListTipoGarantia from "./features/param/components/ListTipoGarantia";
 import ListTipoContratacion from "./features/param/components/ListTipoContratacion";
+import ListTipoCredito from "./features/param/components/ListTipoCredito";
+import ListTipoGarantia from "./features/param/components/ListTipoGarantia";
+import ListTipoPoliza from "./features/param/components/ListTipoPoliza";
+import ListTipoRecuperacion from "./features/param/components/ListTipoRecuperacion";
 import ListUsers from "./features/security/components/ListUsers";
 import PasswordChange from "./features/security/components/PasswordChange.tsx";
 import CargaArchivos from "./features/upload/components/CargaArchivos.tsx";
@@ -35,12 +43,21 @@ export default function AppRoutes() {
       {/* Main app routes with layout */}
       <Route path="/app" element={<Layout />}>
         <Route index element={<LandingPage />} />
+        <Route
+          path="lista-antiguedad-empresa"
+          element={<ListAntiguedadEmpresa />}
+        />
         <Route path="lista-calidad-deudor" element={<ListCalidadDeudor />} />
         <Route
           path="lista-calificacion-credito"
           element={<ListCalificacionCredito />}
         />
+        <Route path="lista-clase-de-deudor" element={<ListClaseDeDeudor />} />
         <Route path="lista-condicion-bien" element={<ListCondicionBien />} />
+        <Route
+          path="lista-condicion-laboral"
+          element={<ListCondicionLaboral />}
+        />
         <Route path="lista-destino-credito" element={<ListDestinoCredito />} />
         <Route path="lista-estado-credito" element={<ListEstadoCredito />} />
         <Route path="lista-estado-registro" element={<ListEstadoRegistro />} />
@@ -48,6 +65,7 @@ export default function AppRoutes() {
           path="lista-franquisia-credito"
           element={<ListFranquisiaCredito />}
         />
+        <Route path="lista-grupo-etnico" element={<ListGrupoEtnico />} />
         <Route
           path="lista-indicador-victima"
           element={<ListIndicadorVictima />}
@@ -58,6 +76,12 @@ export default function AppRoutes() {
           element={<ListModeloProvisiones />}
         />
         <Route path="lista-periodo-gracia" element={<ListPeriodoGracia />} />
+        <Route path="lista-plazo-credito" element={<ListPlazoCredito />} />
+        <Route
+          path="lista-producto-credito"
+          element={<ListProductoCredito />}
+        />
+        <Route path="lista-rango-por-monto" element={<ListRangoPorMonto />} />
         <Route path="lista-tamano-empresa" element={<ListTamanoEmpresa />} />
         <Route
           path="lista-tipo-consolidacion"
@@ -67,8 +91,9 @@ export default function AppRoutes() {
           path="lista-tipo-contratacion"
           element={<ListTipoContratacion />}
         />
-        <Route path="lista-tipo-empleado" element={<ListTipoEmpleado />} />
+        <Route path="lista-tipo-credito" element={<ListTipoCredito />} />
         <Route path="lista-tipo-garantia" element={<ListTipoGarantia />} />
+        <Route path="lista-tipo-poliza" element={<ListTipoPoliza />} />
         <Route
           path="lista-tipo-recuperacion"
           element={<ListTipoRecuperacion />}

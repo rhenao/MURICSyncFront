@@ -1,14 +1,14 @@
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import Toolbar from "@mui/material/Toolbar";
-import React, { useState } from "react";
+import { useState } from "react";
 import Topbar from "./TopBar.tsx";
 import theme from "../theme.ts";
 import { Menu } from "./Menu.tsx";
 import { Outlet } from "react-router-dom";
 //import SidebarMenu from "./SidebarMenu";
 
-const drawerWidth = 290;
+const drawerWidth = 300;
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -30,7 +30,7 @@ export default function Layout() {
   };
 
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box sx={{ display: "flex", minHeight: "100vh", overflow: "hidden" }}>
       <Topbar
         drawerWidth={drawerWidth}
         handleDrawerToggle={handleDrawerToggle}
@@ -76,13 +76,27 @@ export default function Layout() {
       <Box
         component="main"
         sx={{
-          p: 2,
-          flexGrow: 1,
-          width: { xs: "100%", lg: `calc(100% - ${drawerWidth}px)` },
+          //flexGrow: 1,
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          overflow: "hidden",
+          width: { lg: `calc(100% - ${drawerWidth / 2}px)` },
         }}
       >
         <Toolbar />
-        <Outlet />
+        <Box
+          sx={{
+            flexGrow: 1,
+            flexBasis: 0,
+            minHeight: 0,
+            px: 1,
+            py: 1,
+            overflowY: "auto",
+          }}
+        >
+          <Outlet />
+        </Box>
       </Box>
     </Box>
   );

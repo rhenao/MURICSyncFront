@@ -91,7 +91,7 @@ export default function ListTipoConsolidacion() {
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Tabla - Tipo Consolidación
+            Tabla - Tipo de Consolidación
           </Typography>
         )}
       />

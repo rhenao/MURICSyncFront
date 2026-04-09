@@ -9,8 +9,8 @@ import Link from "@mui/material/Link";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useNavigate } from "react-router-dom";
-import AuthService from "../services/AuthService";
 import ForgotPassword from "./ForgotPassword";
+import useAuth from "../../auth/hooks/useAuth";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -20,6 +20,7 @@ export default function Login() {
   const [errors, setErrors] = useState<string[]>([]);
   const [openForgotPassword, setOpenForgotPassword] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +34,7 @@ export default function Login() {
     });
 
     try {
-      const response = await AuthService.login({
+      const response = await login({
         username,
         password,
         rememberMe: remember,

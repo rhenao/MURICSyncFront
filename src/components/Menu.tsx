@@ -13,10 +13,12 @@ import {
   FileUpload,
   Summarize,
   SendAndArchive,
+  AccountTree,
 } from "@mui/icons-material";
 import Logo from "./Logo";
 import { Box, Divider, styled, Typography } from "@mui/material";
 import theme from "../theme";
+import useAuth from "../features/auth/hooks/useAuth";
 
 const Banner = styled(Typography)(() => ({
   fontSize: 18,
@@ -44,6 +46,7 @@ export function Menu() {
   const [openAdmin, setOpenAdmin] = React.useState(false);
   const [openSendMuric, setOpenSendMuric] = React.useState(false);
   const [openReports, setOpenReports] = React.useState(false);
+  const { isAuthenticated } = useAuth();
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -65,16 +68,14 @@ export function Menu() {
           <List component="div" disablePadding dense>
             <ListItemButton
               component={NavLink}
-              to="lista-usuarios"
-              relative="route"
+              to="/app/lista-usuarios"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Administración de usuarios" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="cambiar-contrasena"
-              relative="route"
+              to="/app/cambiar-contrasena"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Cambio de contraseña" />
@@ -94,200 +95,175 @@ export function Menu() {
           <List component="div" disablePadding dense>
             <ListItemButton
               component={NavLink}
-              to="lista-antiguedad-empresa"
-              relative="route"
+              to="/app/lista-antiguedad-empresa"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Antigüedad Empresa" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-calidad-deudor"
-              relative="route"
+              to="/app/lista-calidad-deudor"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Calidad Deudor" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-calificacion-credito"
-              relative="route"
+              to="/app/lista-calificacion-credito"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Calificación Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-clase-de-deudor"
-              relative="route"
+              to="/app/lista-clase-de-deudor"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Clase de Deudor" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-condicion-bien"
-              relative="route"
+              to="/app/lista-condicion-bien"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Condición Bien" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-condicion-laboral"
-              relative="route"
+              to="/app/lista-condicion-laboral"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Condición Laboral" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-destino-credito"
-              relative="route"
+              to="/app/lista-destino-credito"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Destino del Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-estado-credito"
-              relative="route"
+              to="/app/lista-estado-credito"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Estado del Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-estado-registro"
-              relative="route"
+              to="/app/lista-estado-registro"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Estado Registro" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-franquisia-credito"
-              relative="route"
+              to="/app/lista-franquisia-credito"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Franquisia Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-grupo-etnico"
-              relative="route"
+              to="/app/lista-grupo-etnico"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Grupo Étnico" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-indicador-victima"
-              relative="route"
+              to="/app/lista-indicador-victima"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Indicador Victima" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-modalidad"
-              relative="route"
+              to="/app/lista-modalidad"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Modalidades de Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-modelo-provisiones"
-              relative="route"
+              to="/app/lista-modelo-provisiones"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Modelo de Provisiones" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-periodo-gracia"
-              relative="route"
+              to="/app/lista-periodo-gracia"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Periodo de Gracia" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-plazo-credito"
-              relative="route"
+              to="/app/lista-plazo-credito"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Plazo Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-producto-credito"
-              relative="route"
+              to="/app/lista-producto-credito"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Producto Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-rango-por-monto"
-              relative="route"
+              to="/app/lista-rango-por-monto"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Rango por Monto" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-tamano-empresa"
-              relative="route"
+              to="/app/lista-tamano-empresa"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tamaño Empresa" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-tipo-credito"
-              relative="route"
+              to="/app/lista-tipo-credito"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tipo Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-tipo-contratacion"
-              relative="route"
+              to="/app/lista-tipo-contratacion"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tipo Contratación" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-tipo-consolidacion"
-              relative="route"
+              to="/app/lista-tipo-consolidacion"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tipo de Consolidación" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-tipo-recuperacion"
-              relative="route"
+              to="/app/lista-tipo-recuperacion"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tipo de Recuperación" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-tipo-garantia"
-              relative="route"
+              to="/app/lista-tipo-garantia"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tipo Garantía" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="lista-tipo-poliza"
-              relative="route"
+              to="/app/lista-tipo-poliza"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tipo Póliza" />
@@ -296,16 +272,21 @@ export function Menu() {
         </Collapse>
 
         {/* Primer nivel: Cargue de archivos */}
-        <ListItemButton
-          component={NavLink}
-          to="carga-archivos"
-          relative="route"
-        >
+        <ListItemButton component={NavLink} to="/app/carga-archivos">
           <ListItemIcon>
             <FileUpload color="primary" />
           </ListItemIcon>
           <ListItemText primary="Cargue de Archivos" />
         </ListItemButton>
+
+        {isAuthenticated && (
+          <ListItemButton component={NavLink} to="/config-mapeo-carga">
+            <ListItemIcon>
+              <AccountTree color="primary" />
+            </ListItemIcon>
+            <ListItemText primary="Configurar Mapeo de Carga" />
+          </ListItemButton>
+        )}
 
         {/* Primer nivel: Envío a MURIC */}
         <ListItemButton onClick={() => setOpenSendMuric(!openSendMuric)}>
@@ -319,24 +300,21 @@ export function Menu() {
           <List component="div" disablePadding>
             <ListItemButton
               component={NavLink}
-              to="muric001"
-              relative="route"
+              to="/app/muric001"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Información general de los créditos" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="muric002"
-              relative="route"
+              to="/app/muric002"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Atributos de los créditos y deudores" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="muric003"
-              relative="route"
+              to="/app/muric003"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Movimientos de cartera" />
@@ -356,16 +334,14 @@ export function Menu() {
           <List component="div" disablePadding>
             <ListItemButton
               component={NavLink}
-              to="archivos-cargados"
-              relative="route"
+              to="/app/archivos-cargados"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Archivos Cargados" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="archivos-enviados"
-              relative="route"
+              to="/app/archivos-enviados"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Archivos Enviados" />

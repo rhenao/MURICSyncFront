@@ -1,7 +1,7 @@
 import { Route, Routes, Navigate } from "react-router-dom";
 import LandingPage from "./features/home/components/LandingPage";
 import Login from "./features/security/components/Login";
-import Layout from "../src/components/Layout";
+import Layout from "./components/Layout";
 import ListAntiguedadEmpresa from "./features/param/components/ListAntiguedadEmpresa";
 import ListCalidadDeudor from "./features/param/components/ListCalidadDeudor";
 import ListCalificacionCredito from "./features/param/components/ListCalificacionCredito";
@@ -30,6 +30,8 @@ import ListTipoRecuperacion from "./features/param/components/ListTipoRecuperaci
 import ListUsers from "./features/security/components/ListUsers";
 import PasswordChange from "./features/security/components/PasswordChange.tsx";
 import CargaArchivos from "./features/upload/components/CargaArchivos.tsx";
+import ConfigMapeoCarga from "./features/upload/components/ConfigMapeoCarga";
+import RequireAuth from "./features/auth/components/RequireAuth";
 
 export default function AppRoutes() {
   return (
@@ -40,67 +42,101 @@ export default function AppRoutes() {
       {/* Login route (outside layout) */}
       <Route path="/login" element={<Login />} />
 
-      {/* Main app routes with layout */}
-      <Route path="/app" element={<Layout />}>
-        <Route index element={<LandingPage />} />
+      {/* Protected routes with shared layout */}
+      <Route
+        element={
+          <RequireAuth>
+            <Layout />
+          </RequireAuth>
+        }
+      >
+        <Route path="/app" element={<LandingPage />} />
         <Route
-          path="lista-antiguedad-empresa"
+          path="/app/lista-antiguedad-empresa"
           element={<ListAntiguedadEmpresa />}
         />
-        <Route path="lista-calidad-deudor" element={<ListCalidadDeudor />} />
         <Route
-          path="lista-calificacion-credito"
+          path="/app/lista-calidad-deudor"
+          element={<ListCalidadDeudor />}
+        />
+        <Route
+          path="/app/lista-calificacion-credito"
           element={<ListCalificacionCredito />}
         />
-        <Route path="lista-clase-de-deudor" element={<ListClaseDeDeudor />} />
-        <Route path="lista-condicion-bien" element={<ListCondicionBien />} />
         <Route
-          path="lista-condicion-laboral"
+          path="/app/lista-clase-de-deudor"
+          element={<ListClaseDeDeudor />}
+        />
+        <Route
+          path="/app/lista-condicion-bien"
+          element={<ListCondicionBien />}
+        />
+        <Route
+          path="/app/lista-condicion-laboral"
           element={<ListCondicionLaboral />}
         />
-        <Route path="lista-destino-credito" element={<ListDestinoCredito />} />
-        <Route path="lista-estado-credito" element={<ListEstadoCredito />} />
-        <Route path="lista-estado-registro" element={<ListEstadoRegistro />} />
         <Route
-          path="lista-franquisia-credito"
+          path="/app/lista-destino-credito"
+          element={<ListDestinoCredito />}
+        />
+        <Route
+          path="/app/lista-estado-credito"
+          element={<ListEstadoCredito />}
+        />
+        <Route
+          path="/app/lista-estado-registro"
+          element={<ListEstadoRegistro />}
+        />
+        <Route
+          path="/app/lista-franquisia-credito"
           element={<ListFranquisiaCredito />}
         />
-        <Route path="lista-grupo-etnico" element={<ListGrupoEtnico />} />
+        <Route path="/app/lista-grupo-etnico" element={<ListGrupoEtnico />} />
         <Route
-          path="lista-indicador-victima"
+          path="/app/lista-indicador-victima"
           element={<ListIndicadorVictima />}
         />
-        <Route path="lista-modalidad" element={<ListModalidad />} />
+        <Route path="/app/lista-modalidad" element={<ListModalidad />} />
         <Route
-          path="lista-modelo-provisiones"
+          path="/app/lista-modelo-provisiones"
           element={<ListModeloProvisiones />}
         />
-        <Route path="lista-periodo-gracia" element={<ListPeriodoGracia />} />
-        <Route path="lista-plazo-credito" element={<ListPlazoCredito />} />
         <Route
-          path="lista-producto-credito"
+          path="/app/lista-periodo-gracia"
+          element={<ListPeriodoGracia />}
+        />
+        <Route path="/app/lista-plazo-credito" element={<ListPlazoCredito />} />
+        <Route
+          path="/app/lista-producto-credito"
           element={<ListProductoCredito />}
         />
-        <Route path="lista-rango-por-monto" element={<ListRangoPorMonto />} />
-        <Route path="lista-tamano-empresa" element={<ListTamanoEmpresa />} />
         <Route
-          path="lista-tipo-consolidacion"
+          path="/app/lista-rango-por-monto"
+          element={<ListRangoPorMonto />}
+        />
+        <Route
+          path="/app/lista-tamano-empresa"
+          element={<ListTamanoEmpresa />}
+        />
+        <Route
+          path="/app/lista-tipo-consolidacion"
           element={<ListTipoConsolidacion />}
         />
         <Route
-          path="lista-tipo-contratacion"
+          path="/app/lista-tipo-contratacion"
           element={<ListTipoContratacion />}
         />
-        <Route path="lista-tipo-credito" element={<ListTipoCredito />} />
-        <Route path="lista-tipo-garantia" element={<ListTipoGarantia />} />
-        <Route path="lista-tipo-poliza" element={<ListTipoPoliza />} />
+        <Route path="/app/lista-tipo-credito" element={<ListTipoCredito />} />
+        <Route path="/app/lista-tipo-garantia" element={<ListTipoGarantia />} />
+        <Route path="/app/lista-tipo-poliza" element={<ListTipoPoliza />} />
         <Route
-          path="lista-tipo-recuperacion"
+          path="/app/lista-tipo-recuperacion"
           element={<ListTipoRecuperacion />}
         />
-        <Route path="lista-usuarios" element={<ListUsers />} />
-        <Route path="cambiar-contrasena" element={<PasswordChange />} />
-        <Route path="carga-archivos" element={<CargaArchivos />} />
+        <Route path="/app/lista-usuarios" element={<ListUsers />} />
+        <Route path="/app/cambiar-contrasena" element={<PasswordChange />} />
+        <Route path="/app/carga-archivos" element={<CargaArchivos />} />
+        <Route path="/config-mapeo-carga" element={<ConfigMapeoCarga />} />
       </Route>
 
       {/* Catch all - redirect to login */}

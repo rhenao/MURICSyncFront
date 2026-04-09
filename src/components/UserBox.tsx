@@ -16,7 +16,7 @@ import SettingsTwoToneIcon from "@mui/icons-material/SettingsTwoTone";
 import Logout from "@mui/icons-material/Logout";
 import UserAvatar from "./UserAvatar.tsx";
 import { useNavigate } from "react-router-dom";
-import AuthService from "../features/security/services/AuthService.ts";
+import useAuth from "../features/auth/hooks/useAuth";
 
 const UserButton = styled(Button)(() => ({
   all: "inherit",
@@ -71,6 +71,7 @@ const StyledMenu = styled((props: MenuProps) => (
 export default function Userbox() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const open = Boolean(anchorEl);
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -80,8 +81,8 @@ export default function Userbox() {
   };
   const handleLogout = () => {
     setAnchorEl(null);
-    AuthService.logout(); // Limpia el localStorage
-    navigate("/login");
+    logout();
+    navigate("/login", { replace: true });
   };
 
   return (

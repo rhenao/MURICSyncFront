@@ -116,6 +116,20 @@ export function Menu() {
             </ListItemButton>
             <ListItemButton
               component={NavLink}
+              to="/app/lista-canal-desembolso"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Canal de Desembolso" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="/app/lista-canal-originacion"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Canal de Originación" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
               to="/app/lista-clase-de-deudor"
               sx={{ pl: 15, py: 0.1 }}
             >
@@ -200,6 +214,13 @@ export function Menu() {
             </ListItemButton>
             <ListItemButton
               component={NavLink}
+              to="/app/lista-periodicidad"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Periodicidades" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
               to="/app/lista-plazo-credito"
               sx={{ pl: 15, py: 0.1 }}
             >
@@ -221,6 +242,13 @@ export function Menu() {
             </ListItemButton>
             <ListItemButton
               component={NavLink}
+              to="/app/lista-sexo-biologico"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Sexo Biológico" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
               to="/app/lista-tamano-empresa"
               sx={{ pl: 15, py: 0.1 }}
             >
@@ -228,17 +256,17 @@ export function Menu() {
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/app/lista-tipo-credito"
-              sx={{ pl: 15, py: 0.1 }}
-            >
-              <ListItemText primary="Tipo Crédito" />
-            </ListItemButton>
-            <ListItemButton
-              component={NavLink}
               to="/app/lista-tipo-contratacion"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tipo Contratación" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="/app/lista-tipo-credito"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Tipo Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
@@ -253,6 +281,13 @@ export function Menu() {
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tipo de Recuperación" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="/app/lista-tipo-tasa"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Tipo de Tasa" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}

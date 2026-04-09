@@ -1,78 +1,146 @@
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, Navigate } from "react-router-dom";
 import LandingPage from "./features/home/components/LandingPage";
 import Login from "./features/security/components/Login";
-import Layout from "../src/components/Layout";
+import Layout from "./components/Layout";
+import ListAntiguedadEmpresa from "./features/param/components/ListAntiguedadEmpresa";
 import ListCalidadDeudor from "./features/param/components/ListCalidadDeudor";
 import ListCalificacionCredito from "./features/param/components/ListCalificacionCredito";
+import ListClaseDeDeudor from "./features/param/components/ListClaseDeDeudor";
 import ListCondicionBien from "./features/param/components/ListCondicionBien";
+import ListCondicionLaboral from "./features/param/components/ListCondicionLaboral.tsx";
 import ListDestinoCredito from "./features/param/components/ListDestinoCredito";
 import ListEstadoCredito from "./features/param/components/ListEstadoCredito";
 import ListEstadoRegistro from "./features/param/components/ListEstadoRegistro";
 import ListFranquisiaCredito from "./features/param/components/ListFranquisiaCredito";
+import ListGrupoEtnico from "./features/param/components/ListGrupoEtnico";
 import ListIndicadorVictima from "./features/param/components/ListIndicadorVictima";
 import ListModalidad from "./features/param/components/ListModalidad";
 import ListModeloProvisiones from "./features/param/components/ListModeloProvisiones";
 import ListPeriodoGracia from "./features/param/components/ListPeriodoGracia";
+import ListPlazoCredito from "./features/param/components/ListPlazoCredito";
+import ListProductoCredito from "./features/param/components/ListProductoCredito";
+import ListRangoPorMonto from "./features/param/components/ListRangoPorMonto";
 import ListTamanoEmpresa from "./features/param/components/ListTamanoEmpresa";
-import ListTipoRecuperacion from "./features/param/components/ListTipoRecuperacion";
-import ListTipoEmpleado from "./features/param/components/ListTipoEmpleado";
 import ListTipoConsolidacion from "./features/param/components/ListTipoConsolidacion";
-import ListTipoGarantia from "./features/param/components/ListTipoGarantia";
 import ListTipoContratacion from "./features/param/components/ListTipoContratacion";
-//import { isAuthenticated } from "./utils/auth";
-
-// function ProtectedRoute({ children }: { children: React.ReactNode }) {
-//   if (!isAuthenticated()) {
-//     return <Navigate to="/login" replace />;
-//   }
-//   return <>{children}</>;
-// }
+import ListTipoCredito from "./features/param/components/ListTipoCredito";
+import ListTipoGarantia from "./features/param/components/ListTipoGarantia";
+import ListTipoPoliza from "./features/param/components/ListTipoPoliza";
+import ListTipoRecuperacion from "./features/param/components/ListTipoRecuperacion";
+import ListUsers from "./features/security/components/ListUsers";
+import PasswordChange from "./features/security/components/PasswordChange.tsx";
+import CargaArchivos from "./features/upload/components/CargaArchivos.tsx";
+import ConfigMapeoCarga from "./features/upload/components/ConfigMapeoCarga";
+import RequireAuth from "./features/auth/components/RequireAuth";
 
 export default function AppRoutes() {
   return (
     <Routes>
+      {/* Redirect root to login */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+
+      {/* Login route (outside layout) */}
       <Route path="/login" element={<Login />} />
-      <Route path="/" element={<Layout />}>
-        <Route index element={<LandingPage />} />
-        <Route path="lista-calidad-deudor" element={<ListCalidadDeudor />} />
+
+      {/* Protected routes with shared layout */}
+      <Route
+        element={
+          <RequireAuth>
+            <Layout />
+          </RequireAuth>
+        }
+      >
+        <Route path="/app" element={<LandingPage />} />
         <Route
-          path="lista-calificacion-credito"
+          path="/app/lista-antiguedad-empresa"
+          element={<ListAntiguedadEmpresa />}
+        />
+        <Route
+          path="/app/lista-calidad-deudor"
+          element={<ListCalidadDeudor />}
+        />
+        <Route
+          path="/app/lista-calificacion-credito"
           element={<ListCalificacionCredito />}
         />
-        <Route path="lista-condicion-bien" element={<ListCondicionBien />} />
-        <Route path="lista-destino-credito" element={<ListDestinoCredito />} />
-        <Route path="lista-estado-credito" element={<ListEstadoCredito />} />
-        <Route path="lista-estado-registro" element={<ListEstadoRegistro />} />
         <Route
-          path="lista-franquisia-credito"
+          path="/app/lista-clase-de-deudor"
+          element={<ListClaseDeDeudor />}
+        />
+        <Route
+          path="/app/lista-condicion-bien"
+          element={<ListCondicionBien />}
+        />
+        <Route
+          path="/app/lista-condicion-laboral"
+          element={<ListCondicionLaboral />}
+        />
+        <Route
+          path="/app/lista-destino-credito"
+          element={<ListDestinoCredito />}
+        />
+        <Route
+          path="/app/lista-estado-credito"
+          element={<ListEstadoCredito />}
+        />
+        <Route
+          path="/app/lista-estado-registro"
+          element={<ListEstadoRegistro />}
+        />
+        <Route
+          path="/app/lista-franquisia-credito"
           element={<ListFranquisiaCredito />}
         />
+        <Route path="/app/lista-grupo-etnico" element={<ListGrupoEtnico />} />
         <Route
-          path="lista-indicador-victima"
+          path="/app/lista-indicador-victima"
           element={<ListIndicadorVictima />}
         />
-        <Route path="lista-modalidad" element={<ListModalidad />} />
+        <Route path="/app/lista-modalidad" element={<ListModalidad />} />
         <Route
-          path="lista-modelo-provisiones"
+          path="/app/lista-modelo-provisiones"
           element={<ListModeloProvisiones />}
         />
-        <Route path="lista-periodo-gracia" element={<ListPeriodoGracia />} />
-        <Route path="lista-tamano-empresa" element={<ListTamanoEmpresa />} />
         <Route
-          path="lista-tipo-consolidacion"
+          path="/app/lista-periodo-gracia"
+          element={<ListPeriodoGracia />}
+        />
+        <Route path="/app/lista-plazo-credito" element={<ListPlazoCredito />} />
+        <Route
+          path="/app/lista-producto-credito"
+          element={<ListProductoCredito />}
+        />
+        <Route
+          path="/app/lista-rango-por-monto"
+          element={<ListRangoPorMonto />}
+        />
+        <Route
+          path="/app/lista-tamano-empresa"
+          element={<ListTamanoEmpresa />}
+        />
+        <Route
+          path="/app/lista-tipo-consolidacion"
           element={<ListTipoConsolidacion />}
         />
         <Route
-          path="lista-tipo-contratacion"
+          path="/app/lista-tipo-contratacion"
           element={<ListTipoContratacion />}
         />
-        <Route path="lista-tipo-empleado" element={<ListTipoEmpleado />} />
-        <Route path="lista-tipo-garantia" element={<ListTipoGarantia />} />
+        <Route path="/app/lista-tipo-credito" element={<ListTipoCredito />} />
+        <Route path="/app/lista-tipo-garantia" element={<ListTipoGarantia />} />
+        <Route path="/app/lista-tipo-poliza" element={<ListTipoPoliza />} />
         <Route
-          path="lista-tipo-recuperacion"
+          path="/app/lista-tipo-recuperacion"
           element={<ListTipoRecuperacion />}
         />
+        <Route path="/app/lista-usuarios" element={<ListUsers />} />
+        <Route path="/app/cambiar-contrasena" element={<PasswordChange />} />
+        <Route path="/app/carga-archivos" element={<CargaArchivos />} />
+        <Route path="/config-mapeo-carga" element={<ConfigMapeoCarga />} />
       </Route>
+
+      {/* Catch all - redirect to login */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }

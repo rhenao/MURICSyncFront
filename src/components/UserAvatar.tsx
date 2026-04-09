@@ -1,12 +1,18 @@
 import theme from "../theme.ts";
 import { Avatar, ListItem, ListItemAvatar, ListItemText } from "@mui/material";
 import Typography from "@mui/material/Typography";
+import useAuth from "../features/auth/hooks/useAuth";
 
 export default function UserAvatar({
   displaySmall = false,
 }: {
   displaySmall?: boolean;
 }) {
+  const { user } = useAuth();
+
+  const displayName = user?.email || "Usuario";
+  const fullName = user?.fullName || user?.firstName || "Nombre no disponible";
+
   return (
     <ListItem
       sx={{ display: displaySmall ? "flex" : { md: "flex", xs: "none" } }}
@@ -25,7 +31,7 @@ export default function UserAvatar({
             fontWeight={600}
             color={theme.palette.background.default}
           >
-            Admin
+            {displayName}
           </Typography>
         }
         secondary={
@@ -34,7 +40,7 @@ export default function UserAvatar({
             fontWeight={100}
             color={theme.palette.background.paper}
           >
-            Administrador General
+            {fullName}
           </Typography>
         }
       />

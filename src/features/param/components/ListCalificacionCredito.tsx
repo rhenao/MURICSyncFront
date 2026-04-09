@@ -64,6 +64,9 @@ export default function ListCalificacionCredito() {
         enableColumnFilters={false}
         enableSorting={true}
         enablePagination={false}
+        muiTableProps={{
+          size: "small", // Esta es la prop clave para alta densidad
+        }}
         muiTableBodyRowProps={{ hover: true }}
         muiTableContainerProps={{
           sx: {
@@ -89,7 +92,7 @@ export default function ListCalificacionCredito() {
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Lista de Calificación Crédito
+            Tabla - Calificación Crédito
           </Typography>
         )}
       />

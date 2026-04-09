@@ -62,6 +62,9 @@ export default function ListPeriodoGracia() {
         enableColumnFilters={false}
         enableSorting={true}
         enablePagination={false}
+        muiTableProps={{
+          size: "small", // Esta es la prop clave para alta densidad
+        }}
         muiTableBodyRowProps={{ hover: true }}
         muiTableContainerProps={{
           sx: {
@@ -87,7 +90,7 @@ export default function ListPeriodoGracia() {
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Lista de Periodo Gracia
+            Tabla - Periodo de Gracia
           </Typography>
         )}
       />

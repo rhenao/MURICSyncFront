@@ -62,6 +62,9 @@ export default function ListCalidadDeudor() {
         enableColumnFilters={false}
         enableSorting={true}
         enablePagination={false}
+        muiTableProps={{
+          size: "small", // Esta es la prop clave para alta densidad
+        }}
         muiTableBodyRowProps={{ hover: true }}
         muiTableContainerProps={{
           sx: {
@@ -70,7 +73,6 @@ export default function ListCalidadDeudor() {
             minWidth: 0,
             maxWidth: "100vw",
             alignItems: "flex-start",
-            // backgroundColor: "background.paper",
           },
         }}
         muiTablePaperProps={{
@@ -80,14 +82,13 @@ export default function ListCalidadDeudor() {
             minWidth: 0,
             maxWidth: "100vw",
             boxShadow: "none",
-            //backgroundColor: "background.paper",
           },
         }}
         muiTableHeadCellProps={{ sx: { fontSize: "1.15rem" } }}
         muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
         renderTopToolbarCustomActions={() => (
           <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Lista de Calidad de Deudor
+            Tabla - Calidad de Deudor
           </Typography>
         )}
       />

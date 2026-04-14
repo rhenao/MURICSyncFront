@@ -5,11 +5,11 @@ const columns: ColumnConfig[] = [
   { accessorKey: "Descripcion", header: "Descripción", size: 480 },
 ];
 
-export default function ListCalidadDeudor() {
+export default function ListTipoTasa() {
   return (
     <ListGeneral
-      endpoint="/CalidadDeudor"
-      title="Calidad de Deudor"
+      endpoint="/TipoTasa"
+      title="Tipo de Tasa"
       columns={columns}
     />
   );

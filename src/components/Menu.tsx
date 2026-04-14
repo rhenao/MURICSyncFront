@@ -14,6 +14,14 @@ import {
   Summarize,
   SendAndArchive,
   AccountTree,
+  CloudUpload,
+  Info,
+  Assignment,
+  SwapHoriz,
+  FolderOpen,
+  ForwardToInbox,
+  Group,
+  VpnKey,
 } from "@mui/icons-material";
 import Logo from "./Logo";
 import { Box, Divider, styled, Typography } from "@mui/material";
@@ -44,9 +52,21 @@ const DividerLine = styled(Divider)(() => ({
 export function Menu() {
   const [openAdminSeguridad, setOpenAdminSeguridad] = React.useState(false);
   const [openAdmin, setOpenAdmin] = React.useState(false);
+  const [openCargue, setOpenCargue] = React.useState(false);
   const [openSendMuric, setOpenSendMuric] = React.useState(false);
   const [openReports, setOpenReports] = React.useState(false);
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
+
+  const roles = user?.roles ?? [];
+  const hasRole = (...r: string[]) => r.some((rol) => roles.includes(rol));
+
+  const canAdmin = hasRole("ADMIN", "OPERADOR", "CONSULTA");
+  const canCargue = hasRole("ADMIN", "OPERADOR");
+  const canEnvio = hasRole("ADMIN", "OPERADOR");
+  const canConsultas = hasRole("ADMIN", "OPERADOR", "CONSULTA");
+  const canAdminUsuarios = hasRole("ADMIN", "SEGURIDAD");
+  const canCambioContrasena = hasRole("ADMIN", "OPERADOR", "SEGURIDAD", "CONSULTA");
+  const canSeguridad = canAdminUsuarios || canCambioContrasena;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -54,36 +74,9 @@ export function Menu() {
       <DividerLine />
       <List component="nav" sx={{ width: "100%" }}>
         <Banner></Banner>
-        {/* Primer nivel: Seguridad */}
-        <ListItemButton
-          onClick={() => setOpenAdminSeguridad(!openAdminSeguridad)}
-        >
-          <ListItemIcon>
-            <AdminPanelSettings color="primary" />
-          </ListItemIcon>
-          <ListItemText primary="Seguridad" />
-          {openAdminSeguridad ? <ExpandLess /> : <ExpandMore />}
-        </ListItemButton>
-        <Collapse in={openAdminSeguridad} timeout="auto" unmountOnExit>
-          <List component="div" disablePadding dense>
-            <ListItemButton
-              component={NavLink}
-              to="/app/lista-usuarios"
-              sx={{ pl: 15, py: 0.1 }}
-            >
-              <ListItemText primary="Administración de usuarios" />
-            </ListItemButton>
-            <ListItemButton
-              component={NavLink}
-              to="/app/cambiar-contrasena"
-              sx={{ pl: 15, py: 0.1 }}
-            >
-              <ListItemText primary="Cambio de contraseña" />
-            </ListItemButton>
-          </List>
-        </Collapse>
-
         {/* Primer nivel: Administración - tablas básicas */}
+        {canAdmin && (
+        <>
         <ListItemButton onClick={() => setOpenAdmin(!openAdmin)}>
           <ListItemIcon>
             <Settings color="primary" />
@@ -113,6 +106,20 @@ export function Menu() {
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Calificación Crédito" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="/app/lista-canal-desembolso"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Canal de Desembolso" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="/app/lista-canal-originacion"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Canal de Originación" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
@@ -200,6 +207,13 @@ export function Menu() {
             </ListItemButton>
             <ListItemButton
               component={NavLink}
+              to="/app/lista-periodicidad"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Periodicidades" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
               to="/app/lista-plazo-credito"
               sx={{ pl: 15, py: 0.1 }}
             >
@@ -221,6 +235,13 @@ export function Menu() {
             </ListItemButton>
             <ListItemButton
               component={NavLink}
+              to="/app/lista-sexo-biologico"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Sexo Biológico" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
               to="/app/lista-tamano-empresa"
               sx={{ pl: 15, py: 0.1 }}
             >
@@ -228,17 +249,17 @@ export function Menu() {
             </ListItemButton>
             <ListItemButton
               component={NavLink}
-              to="/app/lista-tipo-credito"
-              sx={{ pl: 15, py: 0.1 }}
-            >
-              <ListItemText primary="Tipo Crédito" />
-            </ListItemButton>
-            <ListItemButton
-              component={NavLink}
               to="/app/lista-tipo-contratacion"
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Tipo Contratación" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="/app/lista-tipo-credito"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Tipo Crédito" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
@@ -256,6 +277,13 @@ export function Menu() {
             </ListItemButton>
             <ListItemButton
               component={NavLink}
+              to="/app/lista-tipo-tasa"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Tipo de Tasa" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
               to="/app/lista-tipo-garantia"
               sx={{ pl: 15, py: 0.1 }}
             >
@@ -268,27 +296,55 @@ export function Menu() {
             >
               <ListItemText primary="Tipo Póliza" />
             </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="/app/lista-universalidades"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Universalidades" />
+            </ListItemButton>
+
           </List>
         </Collapse>
+        </>
+        )}
 
-        {/* Primer nivel: Cargue de archivos */}
-        <ListItemButton component={NavLink} to="/app/carga-archivos">
+        {/* Primer nivel: Proceso de cargue de archivos */}
+        {canCargue && (
+        <>
+        <ListItemButton onClick={() => setOpenCargue(!openCargue)}>
           <ListItemIcon>
             <FileUpload color="primary" />
           </ListItemIcon>
-          <ListItemText primary="Cargue de Archivos" />
+          <ListItemText primary="Proceso de cargue de archivos" />
+          {openCargue ? <ExpandLess /> : <ExpandMore />}
         </ListItemButton>
-
-        {isAuthenticated && (
-          <ListItemButton component={NavLink} to="/config-mapeo-carga">
-            <ListItemIcon>
-              <AccountTree color="primary" />
-            </ListItemIcon>
-            <ListItemText primary="Configurar Mapeo de Carga" />
-          </ListItemButton>
+        <Collapse in={openCargue} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding dense>
+            <ListItemButton
+              component={NavLink}
+              to="/config-mapeo-carga"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><AccountTree fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Configurar mapeo de carga" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="/app/carga-archivos"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><CloudUpload fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Cargue de archivos" />
+            </ListItemButton>
+          </List>
+        </Collapse>
+        </>
         )}
 
         {/* Primer nivel: Envío a MURIC */}
+        {canEnvio && (
+        <>
         <ListItemButton onClick={() => setOpenSendMuric(!openSendMuric)}>
           <ListItemIcon>
             <SendAndArchive color="primary" />
@@ -301,28 +357,35 @@ export function Menu() {
             <ListItemButton
               component={NavLink}
               to="/app/muric001"
-              sx={{ pl: 15, py: 0.1 }}
+              sx={{ pl: 6, py: 0.1 }}
             >
+              <ListItemIcon><Info fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Información general de los créditos" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
               to="/app/muric002"
-              sx={{ pl: 15, py: 0.1 }}
+              sx={{ pl: 6, py: 0.1 }}
             >
+              <ListItemIcon><Assignment fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Atributos de los créditos y deudores" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
               to="/app/muric003"
-              sx={{ pl: 15, py: 0.1 }}
+              sx={{ pl: 6, py: 0.1 }}
             >
+              <ListItemIcon><SwapHoriz fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Movimientos de cartera" />
             </ListItemButton>
           </List>
         </Collapse>
+        </>
+        )}
 
         {/* Primer nivel: Reportes (sin subnivel) */}
+        {canConsultas && (
+        <>
         <ListItemButton onClick={() => setOpenReports(!openReports)}>
           <ListItemIcon>
             <Summarize color="primary" />
@@ -335,19 +398,62 @@ export function Menu() {
             <ListItemButton
               component={NavLink}
               to="/app/archivos-cargados"
-              sx={{ pl: 15, py: 0.1 }}
+              sx={{ pl: 6, py: 0.1 }}
             >
+              <ListItemIcon><FolderOpen fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Archivos Cargados" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
               to="/app/archivos-enviados"
-              sx={{ pl: 15, py: 0.1 }}
+              sx={{ pl: 6, py: 0.1 }}
             >
+              <ListItemIcon><ForwardToInbox fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Archivos Enviados" />
             </ListItemButton>
           </List>
         </Collapse>
+        </>
+        )}
+
+        {/* Primer nivel: Seguridad */}
+        {canSeguridad && (
+        <>
+        <ListItemButton
+          onClick={() => setOpenAdminSeguridad(!openAdminSeguridad)}
+        >
+          <ListItemIcon>
+            <AdminPanelSettings color="primary" />
+          </ListItemIcon>
+          <ListItemText primary="Seguridad" />
+          {openAdminSeguridad ? <ExpandLess /> : <ExpandMore />}
+        </ListItemButton>
+        <Collapse in={openAdminSeguridad} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding dense>
+            {canAdminUsuarios && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/lista-usuarios"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><Group fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Administración de usuarios" />
+            </ListItemButton>
+            )}
+            {canCambioContrasena && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/cambiar-contrasena"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><VpnKey fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Cambio de contraseña" />
+            </ListItemButton>
+            )}
+          </List>
+        </Collapse>
+        </>
+        )}
       </List>
       <VersionBanner sx={{ mt: "auto" }}>
         Version {import.meta.env.VITE_APP_VERSION}

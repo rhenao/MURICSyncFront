@@ -27,7 +27,7 @@ interface DialogUserProps {
   title?: string;
 }
 
-const availableRoles = ["Admin", "Operador", "Supervisor", "Consulta"]; // Obtener de API o constantes
+const availableRoles = ["Admin", "Operador", "Seguridad", "Consulta"]; // Obtener de API o constantes
 
 export default function DialogUser({
   open,

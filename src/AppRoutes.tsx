@@ -27,11 +27,17 @@ import ListTipoCredito from "./features/param/components/ListTipoCredito";
 import ListTipoGarantia from "./features/param/components/ListTipoGarantia";
 import ListTipoPoliza from "./features/param/components/ListTipoPoliza";
 import ListTipoRecuperacion from "./features/param/components/ListTipoRecuperacion";
+import ListCanalDesembolso from "./features/param/components/ListCanalDesembolso";
+import ListCanalOriginacion from "./features/param/components/ListCanalOriginacion";
+import ListPeriodicidad from "./features/param/components/ListPeriodicidad";
+import ListSexoBiologico from "./features/param/components/ListSexoBiologico";
+import ListTipoTasa from "./features/param/components/ListTipoTasa";
 import ListUsers from "./features/security/components/ListUsers";
 import PasswordChange from "./features/security/components/PasswordChange.tsx";
 import CargaArchivos from "./features/upload/components/CargaArchivos.tsx";
 import ConfigMapeoCarga from "./features/upload/components/ConfigMapeoCarga";
 import RequireAuth from "./features/auth/components/RequireAuth";
+import ListUniversalidades from "./features/param/components/ListUniversalidades.tsx";
 
 export default function AppRoutes() {
   return (
@@ -133,6 +139,24 @@ export default function AppRoutes() {
           path="/app/lista-tipo-recuperacion"
           element={<ListTipoRecuperacion />}
         />
+        <Route
+          path="/app/lista-canal-desembolso"
+          element={<ListCanalDesembolso />}
+        />
+        <Route
+          path="/app/lista-canal-originacion"
+          element={<ListCanalOriginacion />}
+        />
+        <Route
+          path="/app/lista-periodicidad"
+          element={<ListPeriodicidad />}
+        />
+        <Route
+          path="/app/lista-sexo-biologico"
+          element={<ListSexoBiologico />}
+        />
+        <Route path="/app/lista-universalidades" element={<ListUniversalidades />} />
+        <Route path="/app/lista-tipo-tasa" element={<ListTipoTasa />} />
         <Route path="/app/lista-usuarios" element={<ListUsers />} />
         <Route path="/app/cambiar-contrasena" element={<PasswordChange />} />
         <Route path="/app/carga-archivos" element={<CargaArchivos />} />

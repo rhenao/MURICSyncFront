@@ -3,19 +3,14 @@ import ListGeneral, { type ColumnConfig } from "../shared/ListGeneral";
 const columns: ColumnConfig[] = [
   { accessorKey: "Codigo", header: "Código", size: 120 },
   { accessorKey: "Descripcion", header: "Descripción", size: 320 },
-  {
-    accessorKey: "DescripcionDetallada",
-    header: "Descripción Detallada",
-    size: 420,
-    nullFallback: "–",
-  },
+  { accessorKey: "Activo", header: "Activo", size: 120 },
 ];
 
-export default function ListAntiguedadEmpresa() {
+export default function ListUniversalidades() {
   return (
     <ListGeneral
-      endpoint="/AntiguedadEmpresa"
-      title="Antigüedad Empresa"
+      endpoint="/Universalidades"
+      title="Universalidades"
       columns={columns}
     />
   );

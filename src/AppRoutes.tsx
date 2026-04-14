@@ -37,6 +37,7 @@ import PasswordChange from "./features/security/components/PasswordChange.tsx";
 import CargaArchivos from "./features/upload/components/CargaArchivos.tsx";
 import ConfigMapeoCarga from "./features/upload/components/ConfigMapeoCarga";
 import RequireAuth from "./features/auth/components/RequireAuth";
+import ListUniversalidades from "./features/param/components/ListUniversalidades.tsx";
 
 export default function AppRoutes() {
   return (
@@ -154,6 +155,7 @@ export default function AppRoutes() {
           path="/app/lista-sexo-biologico"
           element={<ListSexoBiologico />}
         />
+        <Route path="/app/lista-universalidades" element={<ListUniversalidades />} />
         <Route path="/app/lista-tipo-tasa" element={<ListTipoTasa />} />
         <Route path="/app/lista-usuarios" element={<ListUsers />} />
         <Route path="/app/cambiar-contrasena" element={<PasswordChange />} />

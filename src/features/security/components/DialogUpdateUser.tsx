@@ -8,6 +8,7 @@ import {
   Button,
   Box,
   FormControl,
+  FormControlLabel,
   InputLabel,
   Select,
   MenuItem,
@@ -15,52 +16,50 @@ import {
   OutlinedInput,
   CircularProgress,
   Alert,
+  Switch,
   type SelectChangeEvent,
 } from "@mui/material";
-import { type UserInfoDto } from "../models/UserInfoDto.ts";
+import type UpdateUserDto from "../models/UpdateUserDto";
+import type { UserInfoDto } from "../models/UserInfoDto";
+import axiosSecurityAPIClient from "../../../api/axiosSecurityAPIClient";
 
-interface DialogUserProps {
+interface DialogUpdateUserProps {
   open: boolean;
   onClose: () => void;
-  onSave: (user: Partial<UserInfoDto>) => Promise<void>;
-  user?: UserInfoDto; // Para edición (opcional)
-  title?: string;
+  onUserUpdated?: () => void;
+  user: UserInfoDto;
 }
 
-const availableRoles = ["ADMIN", "OPERADOR", "SEGURIDAD", "CONSULTA"]; // Obtener de API o constantes
+const availableRoles = ["ADMIN", "OPERADOR", "SEGURIDAD", "CONSULTA"];
 
-export default function DialogUser({
+export default function DialogUpdateUser({
   open,
   onClose,
-  onSave,
+  onUserUpdated,
   user,
-  title = "Agregar Usuario",
-}: DialogUserProps) {
+}: DialogUpdateUserProps) {
   const [formData, setFormData] = useState({
-    email: user?.email || "",
-    firstName: user?.firstName || "",
-    lastName: user?.lastName || "",
-    roles: user?.roles || [],
+    firstName: "",
+    lastName: "",
+    numDocument: "",
+    isActive: true,
+    roles: [] as string[],
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [success, setSuccess] = useState(false);
 
-  // Agregar useEffect para actualizar el formulario cuando cambie el usuario
   useEffect(() => {
     if (user) {
       setFormData({
-        email: user.email || "",
         firstName: user.firstName || "",
         lastName: user.lastName || "",
+        numDocument: (user as unknown as Record<string, string>).numDocument || "",
+        isActive: (user as unknown as Record<string, boolean>).isActive ?? true,
         roles: user.roles || [],
       });
-    } else {
-      setFormData({
-        email: "",
-        firstName: "",
-        lastName: "",
-        roles: [],
-      });
+      setErrors([]);
+      setSuccess(false);
     }
   }, [user]);
 
@@ -69,7 +68,6 @@ export default function DialogUser({
       ...prev,
       [field]: value,
     }));
-    // Limpiar errores cuando el usuario empiece a escribir
     if (errors.length > 0) {
       setErrors([]);
     }
@@ -87,19 +85,19 @@ export default function DialogUser({
     e.preventDefault();
     setLoading(true);
     setErrors([]);
+    setSuccess(false);
 
     try {
-      // Validaciones básicas
       const validationErrors: string[] = [];
 
-      if (!formData.email.trim()) {
-        validationErrors.push("El email es requerido");
-      }
       if (!formData.firstName.trim()) {
         validationErrors.push("El nombre es requerido");
       }
       if (!formData.lastName.trim()) {
         validationErrors.push("El apellido es requerido");
+      }
+      if (!formData.numDocument.trim()) {
+        validationErrors.push("El número de documento es requerido");
       }
       if (formData.roles.length === 0) {
         validationErrors.push("Debe seleccionar al menos un rol");
@@ -110,28 +108,25 @@ export default function DialogUser({
         return;
       }
 
-      await onSave({
-        ...formData,
-        fullName: `${formData.firstName} ${formData.lastName}`.trim(),
-      });
+      const updateDto: UpdateUserDto = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        numDocument: formData.numDocument.trim(),
+        isActive: formData.isActive,
+        roles: formData.roles,
+      };
 
-      // Limpiar formulario y cerrar
-      setFormData({
-        email: "",
-        firstName: "",
-        lastName: "",
-        roles: [],
-      });
-      onClose();
+      await axiosSecurityAPIClient.put(`/Auth/users/${user.id}`, updateDto);
+
+      setSuccess(true);
+      onUserUpdated?.();
     } catch (error: unknown) {
-      console.error("Error al guardar usuario:", error);
+      console.error("Error al actualizar usuario:", error);
 
-      let errorMessage = "Error al guardar el usuario. Intente nuevamente.";
-
+      let errorMessage = "Error al actualizar el usuario. Intente nuevamente.";
       if (error instanceof Error) {
         errorMessage += ` (${error.message})`;
       }
-
       setErrors([errorMessage]);
     } finally {
       setLoading(false);
@@ -140,13 +135,8 @@ export default function DialogUser({
 
   const handleClose = () => {
     if (!loading) {
-      setFormData({
-        email: "",
-        firstName: "",
-        lastName: "",
-        roles: [],
-      });
       setErrors([]);
+      setSuccess(false);
       onClose();
     }
   };
@@ -161,7 +151,7 @@ export default function DialogUser({
         sx: { borderRadius: 2 },
       }}
     >
-      <DialogTitle sx={{ pb: 1 }}>{title}</DialogTitle>
+      <DialogTitle sx={{ pb: 1 }}>Editar Usuario</DialogTitle>
 
       <Box component="form" onSubmit={handleSubmit}>
         <DialogContent sx={{ pt: 1 }}>
@@ -173,16 +163,11 @@ export default function DialogUser({
             </Alert>
           )}
 
-          <TextField
-            label="Usuario/Email"
-            type="email"
-            fullWidth
-            margin="normal"
-            value={formData.email}
-            onChange={(e) => handleInputChange("email", e.target.value)}
-            disabled={loading}
-            required
-          />
+          {success && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              Usuario actualizado exitosamente.
+            </Alert>
+          )}
 
           <TextField
             label="Nombre"
@@ -192,6 +177,7 @@ export default function DialogUser({
             onChange={(e) => handleInputChange("firstName", e.target.value)}
             disabled={loading}
             required
+            inputProps={{ maxLength: 100 }}
           />
 
           <TextField
@@ -202,6 +188,32 @@ export default function DialogUser({
             onChange={(e) => handleInputChange("lastName", e.target.value)}
             disabled={loading}
             required
+            inputProps={{ maxLength: 100 }}
+          />
+
+          <TextField
+            label="Número de Documento"
+            fullWidth
+            margin="normal"
+            value={formData.numDocument}
+            onChange={(e) => handleInputChange("numDocument", e.target.value)}
+            disabled={loading}
+            required
+            inputProps={{ maxLength: 15 }}
+          />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={formData.isActive}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, isActive: e.target.checked }))
+                }
+                disabled={loading}
+              />
+            }
+            label="Activo"
+            sx={{ mt: 1, mb: 1 }}
           />
 
           <FormControl fullWidth margin="normal" required>

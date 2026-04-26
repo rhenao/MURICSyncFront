@@ -3,29 +3,30 @@ import { MaterialReactTable, type MRT_ColumnDef } from "material-react-table";
 import { Button, Card, Typography, Chip, Box } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import type { UserInfoDto } from "../models/UserInfoDto.ts";
-import DialogUser from "./DialogUser";
 import DialogResetPassword from "./DialogResetPassword";
+import DialogRegisterUser from "./DialogRegisterUser";
+import DialogUpdateUser from "./DialogUpdateUser";
 import { useGetUsers } from "../hooks/useGetUsers.tsx";
 
 export default function ListUsers() {
   const { entidades, cargando } = useGetUsers<UserInfoDto>("/auth/users");
-  const [openDialog, setOpenDialog] = useState(false);
+  const [openCrearUserDialog, setOpenCrearUserDialog] = useState(false);
+  const [openEditUserDialog, setOpenEditUserDialog] = useState(false);
   const [openResetPasswordDialog, setOpenResetPasswordDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserInfoDto | null>(null);
   const [editingUser, setEditingUser] = useState<UserInfoDto | null>(null);
 
   const handleAddUser = () => {
-    setEditingUser(null); // Asegurar que no hay usuario en edición
-    setOpenDialog(true);
+    setOpenCrearUserDialog(true);
   };
 
   const handleEditUser = (user: UserInfoDto) => {
     setEditingUser(user);
-    setOpenDialog(true);
+    setOpenEditUserDialog(true);
   };
 
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
+  const handleCloseEditDialog = () => {
+    setOpenEditUserDialog(false);
     setEditingUser(null);
   };
 
@@ -44,17 +45,6 @@ export default function ListUsers() {
     // TODO: Mostrar notificación o recargar datos si es necesario
   };
 
-  const handleSaveUser = async (userData: Partial<UserInfoDto>) => {
-    if (editingUser) {
-      console.log("Actualizando usuario:", editingUser.id, userData);
-      // TODO: await UserService.updateUser(editingUser.id, userData);
-    } else {
-      console.log("Creando nuevo usuario:", userData);
-      // TODO: await UserService.createUser(userData);
-    }
-    // TODO: Recargar la lista después de guardar
-  };
-
   const columns: MRT_ColumnDef<UserInfoDto>[] = [
     {
       accessorKey: "email",
@@ -65,6 +55,23 @@ export default function ListUsers() {
       accessorKey: "fullName",
       header: "Nombre Completo",
       size: 250,
+    },
+    {
+      accessorKey: "numDocument",
+      header: "Documento",
+      size: 150,
+    },
+    {
+      accessorKey: "isActive",
+      header: "Activo",
+      size: 100,
+      Cell: ({ cell }) => (
+        <Chip
+          label={cell.getValue<boolean>() ? "Sí" : "No"}
+          size="small"
+          color={cell.getValue<boolean>() ? "success" : "default"}
+        />
+      ),
     },
     {
       accessorKey: "roles",
@@ -213,12 +220,19 @@ export default function ListUsers() {
         />
       </Card>
 
-      <DialogUser
-        open={openDialog}
-        onClose={handleCloseDialog}
-        onSave={handleSaveUser}
-        user={editingUser || undefined}
-        title={editingUser ? "Editar Usuario" : "Agregar Nuevo Usuario"}
+      {editingUser && (
+        <DialogUpdateUser
+          open={openEditUserDialog}
+          onClose={handleCloseEditDialog}
+          user={editingUser}
+          onUserUpdated={() => window.location.reload()}
+        />
+      )}
+
+      <DialogRegisterUser
+        open={openCrearUserDialog}
+        onClose={() => setOpenCrearUserDialog(false)}
+        onUserCreated={() => window.location.reload()}
       />
 
       {selectedUser && (

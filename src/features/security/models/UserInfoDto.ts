@@ -4,6 +4,9 @@ export interface UserInfoDto {
   firstName?: string;
   lastName?: string;
   fullName?: string;
+  dateOfBirth?: string;
+  isActive?: boolean;
+  numDocument?: string;
   roles: string[];
 }
 

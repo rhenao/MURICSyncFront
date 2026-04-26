@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -17,59 +17,40 @@ import {
   Alert,
   type SelectChangeEvent,
 } from "@mui/material";
-import { type UserInfoDto } from "../models/UserInfoDto.ts";
+import type RegisterDto from "../models/RegisterDto";
+import axiosSecurityAPIClient from "../../../api/axiosSecurityAPIClient";
 
-interface DialogUserProps {
+interface CrearUserProps {
   open: boolean;
   onClose: () => void;
-  onSave: (user: Partial<UserInfoDto>) => Promise<void>;
-  user?: UserInfoDto; // Para edición (opcional)
-  title?: string;
+  onUserCreated?: () => void;
 }
 
-const availableRoles = ["ADMIN", "OPERADOR", "SEGURIDAD", "CONSULTA"]; // Obtener de API o constantes
+const availableRoles = ["ADMIN", "OPERADOR", "SEGURIDAD", "CONSULTA"];
 
-export default function DialogUser({
+export default function DialogRegisterUser({
   open,
   onClose,
-  onSave,
-  user,
-  title = "Agregar Usuario",
-}: DialogUserProps) {
+  onUserCreated,
+}: CrearUserProps) {
   const [formData, setFormData] = useState({
-    email: user?.email || "",
-    firstName: user?.firstName || "",
-    lastName: user?.lastName || "",
-    roles: user?.roles || [],
+    email: "",
+    password: "",
+    confirmPassword: "",
+    firstName: "",
+    lastName: "",
+    numDocument: "",
+    roles: [] as string[],
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-
-  // Agregar useEffect para actualizar el formulario cuando cambie el usuario
-  useEffect(() => {
-    if (user) {
-      setFormData({
-        email: user.email || "",
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
-        roles: user.roles || [],
-      });
-    } else {
-      setFormData({
-        email: "",
-        firstName: "",
-        lastName: "",
-        roles: [],
-      });
-    }
-  }, [user]);
+  const [success, setSuccess] = useState(false);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
-    // Limpiar errores cuando el usuario empiece a escribir
     if (errors.length > 0) {
       setErrors([]);
     }
@@ -87,19 +68,30 @@ export default function DialogUser({
     e.preventDefault();
     setLoading(true);
     setErrors([]);
+    setSuccess(false);
 
     try {
-      // Validaciones básicas
       const validationErrors: string[] = [];
 
       if (!formData.email.trim()) {
         validationErrors.push("El email es requerido");
+      }
+      if (!formData.password.trim()) {
+        validationErrors.push("La contraseña es requerida");
+      } else if (formData.password.length < 6) {
+        validationErrors.push("La contraseña debe tener al menos 6 caracteres");
+      }
+      if (formData.password !== formData.confirmPassword) {
+        validationErrors.push("Las contraseñas no coinciden");
       }
       if (!formData.firstName.trim()) {
         validationErrors.push("El nombre es requerido");
       }
       if (!formData.lastName.trim()) {
         validationErrors.push("El apellido es requerido");
+      }
+      if (!formData.numDocument.trim()) {
+        validationErrors.push("El número de documento es requerido");
       }
       if (formData.roles.length === 0) {
         validationErrors.push("Debe seleccionar al menos un rol");
@@ -110,28 +102,37 @@ export default function DialogUser({
         return;
       }
 
-      await onSave({
-        ...formData,
-        fullName: `${formData.firstName} ${formData.lastName}`.trim(),
-      });
+      const registerDto: RegisterDto = {
+        email: formData.email.trim(),
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        numDocument: formData.numDocument.trim(),
+        dateOfBirth: new Date().toISOString(),
+        roles: formData.roles,
+      };
 
-      // Limpiar formulario y cerrar
+      await axiosSecurityAPIClient.post("/Auth/register", registerDto);
+
+      setSuccess(true);
       setFormData({
         email: "",
+        password: "",
+        confirmPassword: "",
         firstName: "",
         lastName: "",
+        numDocument: "",
         roles: [],
       });
-      onClose();
+      onUserCreated?.();
     } catch (error: unknown) {
-      console.error("Error al guardar usuario:", error);
+      console.error("Error al registrar usuario:", error);
 
-      let errorMessage = "Error al guardar el usuario. Intente nuevamente.";
-
+      let errorMessage = "Error al registrar el usuario. Intente nuevamente.";
       if (error instanceof Error) {
         errorMessage += ` (${error.message})`;
       }
-
       setErrors([errorMessage]);
     } finally {
       setLoading(false);
@@ -142,11 +143,15 @@ export default function DialogUser({
     if (!loading) {
       setFormData({
         email: "",
+        password: "",
+        confirmPassword: "",
         firstName: "",
         lastName: "",
+        numDocument: "",
         roles: [],
       });
       setErrors([]);
+      setSuccess(false);
       onClose();
     }
   };
@@ -161,7 +166,7 @@ export default function DialogUser({
         sx: { borderRadius: 2 },
       }}
     >
-      <DialogTitle sx={{ pb: 1 }}>{title}</DialogTitle>
+      <DialogTitle sx={{ pb: 1 }}>Crear Usuario</DialogTitle>
 
       <Box component="form" onSubmit={handleSubmit}>
         <DialogContent sx={{ pt: 1 }}>
@@ -173,8 +178,14 @@ export default function DialogUser({
             </Alert>
           )}
 
+          {success && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              Usuario registrado exitosamente.
+            </Alert>
+          )}
+
           <TextField
-            label="Usuario/Email"
+            label="Email"
             type="email"
             fullWidth
             margin="normal"
@@ -182,6 +193,33 @@ export default function DialogUser({
             onChange={(e) => handleInputChange("email", e.target.value)}
             disabled={loading}
             required
+            autoComplete="off"
+            inputProps={{ maxLength: 100 }}
+          />
+
+          <TextField
+            label="Contraseña"
+            type="password"
+            fullWidth
+            margin="normal"
+            value={formData.password}
+            onChange={(e) => handleInputChange("password", e.target.value)}
+            disabled={loading}
+            required
+            autoComplete="new-password"
+            inputProps={{ maxLength: 100 }}
+          />
+
+          <TextField
+            label="Confirmar Contraseña"
+            type="password"
+            fullWidth
+            margin="normal"
+            value={formData.confirmPassword}
+            onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+            disabled={loading}
+            required
+            inputProps={{ maxLength: 100 }}
           />
 
           <TextField
@@ -192,6 +230,7 @@ export default function DialogUser({
             onChange={(e) => handleInputChange("firstName", e.target.value)}
             disabled={loading}
             required
+            inputProps={{ maxLength: 100 }}
           />
 
           <TextField
@@ -202,6 +241,18 @@ export default function DialogUser({
             onChange={(e) => handleInputChange("lastName", e.target.value)}
             disabled={loading}
             required
+            inputProps={{ maxLength: 100 }}
+          />
+
+          <TextField
+            label="Número de Documento"
+            fullWidth
+            margin="normal"
+            value={formData.numDocument}
+            onChange={(e) => handleInputChange("numDocument", e.target.value)}
+            disabled={loading}
+            required
+            inputProps={{ maxLength: 15 }}
           />
 
           <FormControl fullWidth margin="normal" required>
@@ -239,7 +290,7 @@ export default function DialogUser({
             disabled={loading}
             startIcon={loading ? <CircularProgress size={20} /> : null}
           >
-            {loading ? "Guardando..." : "Guardar"}
+            {loading ? "Registrando..." : "Registrar"}
           </Button>
         </DialogActions>
       </Box>

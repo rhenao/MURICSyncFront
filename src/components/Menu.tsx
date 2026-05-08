@@ -15,11 +15,8 @@ import {
   SendAndArchive,
   AccountTree,
   CloudUpload,
-  Info,
-  Assignment,
-  SwapHoriz,
-  FolderOpen,
-  ForwardToInbox,
+  //FolderOpen,
+  //ForwardToInbox,
   Group,
   VpnKey,
 } from "@mui/icons-material";
@@ -72,7 +69,24 @@ export function Menu() {
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Logo />
       <DividerLine />
-      <List component="nav" sx={{ width: "100%" }}>
+      <List
+        component="nav"
+        sx={{
+          width: "100%",
+          px: 0.5,
+          "& > .MuiListItemButton-root": {
+            minHeight: 42,
+            mb: 0.35,
+          },
+          "& .MuiCollapse-root .MuiListItemButton-root": {
+            minHeight: 36,
+            mb: 0.2,
+          },
+          "& .MuiListItemText-primary": {
+            lineHeight: 1.25,
+          },
+        }}
+      >
         <Banner></Banner>
         {/* Primer nivel: Administración - tablas básicas */}
         {canAdmin && (
@@ -356,27 +370,11 @@ export function Menu() {
           <List component="div" disablePadding>
             <ListItemButton
               component={NavLink}
-              to="/app/muric001"
+              to="/app/envio-muric"
               sx={{ pl: 6, py: 0.1 }}
             >
-              <ListItemIcon><Info fontSize="small" color="primary" /></ListItemIcon>
-              <ListItemText primary="Información general de los créditos" />
-            </ListItemButton>
-            <ListItemButton
-              component={NavLink}
-              to="/app/muric002"
-              sx={{ pl: 6, py: 0.1 }}
-            >
-              <ListItemIcon><Assignment fontSize="small" color="primary" /></ListItemIcon>
-              <ListItemText primary="Atributos de los créditos y deudores" />
-            </ListItemButton>
-            <ListItemButton
-              component={NavLink}
-              to="/app/muric003"
-              sx={{ pl: 6, py: 0.1 }}
-            >
-              <ListItemIcon><SwapHoriz fontSize="small" color="primary" /></ListItemIcon>
-              <ListItemText primary="Movimientos de cartera" />
+              <ListItemIcon><SendAndArchive fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Formulario de envío a MURIC" />
             </ListItemButton>
           </List>
         </Collapse>
@@ -395,21 +393,21 @@ export function Menu() {
         </ListItemButton>
         <Collapse in={openReports} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
-            <ListItemButton
+            {/* <ListItemButton
               component={NavLink}
               to="/app/archivos-cargados"
               sx={{ pl: 6, py: 0.1 }}
             >
               <ListItemIcon><FolderOpen fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Archivos Cargados" />
-            </ListItemButton>
+            </ListItemButton> */}
             <ListItemButton
               component={NavLink}
-              to="/app/archivos-enviados"
+              to="/app/consultas-muric"
               sx={{ pl: 6, py: 0.1 }}
             >
-              <ListItemIcon><ForwardToInbox fontSize="small" color="primary" /></ListItemIcon>
-              <ListItemText primary="Archivos Enviados" />
+              <ListItemIcon><Summarize fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Consultas MURIC" />
             </ListItemButton>
           </List>
         </Collapse>

@@ -76,12 +76,12 @@ export default function Layout() {
       <Box
         component="main"
         sx={{
-          //flexGrow: 1,
+          flexGrow: 1,
           display: "flex",
           flexDirection: "column",
-          height: "100vh",
+          minHeight: "100vh",
           overflow: "hidden",
-          width: { lg: `calc(100% - ${drawerWidth / 2}px)` },
+          width: { xs: "100%", lg: `calc(100% - ${drawerWidth}px)` },
         }}
       >
         <Toolbar />
@@ -90,8 +90,8 @@ export default function Layout() {
             flexGrow: 1,
             flexBasis: 0,
             minHeight: 0,
-            px: 1,
-            py: 1,
+            px: { xs: 1, md: 2 },
+            py: { xs: 1, md: 2 },
             overflowY: "auto",
           }}
         >

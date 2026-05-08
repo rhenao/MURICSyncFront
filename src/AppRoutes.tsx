@@ -36,8 +36,10 @@ import ListUsers from "./features/security/components/ListUsers";
 import PasswordChange from "./features/security/components/PasswordChange.tsx";
 import CargaArchivos from "./features/upload/components/CargaArchivos.tsx";
 import ConfigMapeoCarga from "./features/upload/components/ConfigMapeoCarga";
+import EnviaMURIC from "./features/submission/components/EnviaMURIC";
 import RequireAuth from "./features/auth/components/RequireAuth";
 import ListUniversalidades from "./features/param/components/ListUniversalidades.tsx";
+import ConsultasMURIC from "./features/queries/components/ConsultasMURIC";
 
 export default function AppRoutes() {
   return (
@@ -160,6 +162,8 @@ export default function AppRoutes() {
         <Route path="/app/lista-usuarios" element={<ListUsers />} />
         <Route path="/app/cambiar-contrasena" element={<PasswordChange />} />
         <Route path="/app/carga-archivos" element={<CargaArchivos />} />
+        <Route path="/app/envio-muric" element={<EnviaMURIC />} />
+        <Route path="/app/consultas-muric" element={<ConsultasMURIC />} />
         <Route path="/config-mapeo-carga" element={<ConfigMapeoCarga />} />
       </Route>
 

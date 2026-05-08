@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Button,
   TextField,
@@ -35,6 +35,7 @@ import Paper from "@mui/material/Paper";
 import Box from "@mui/material/Box";
 import ResultadoCargue from "./ResultadoCargue";
 import * as XLSX from "xlsx";
+import { useEntidades } from "../../../hooks/useEntidades";
 import {
   //type ArchivosCarga,
   type ArchivosCargaDetalle,
@@ -62,24 +63,16 @@ interface FileSummary {
   content: string[]; // primeras n líneas
 }
 
-interface Empresa {
-  codigo: string;
-  nombre: string;
+interface UniversalidadOData {
+  Codigo?: string | number;
+  Descripcion?: string;
+  Estado?: string;
+  Activo?: string;
+  codigo?: string | number;
+  descripcion?: string;
+  estado?: string;
+  activo?: string;
 }
-
-// Datos de prueba - después conectar con API
-const empresasPrueba: Empresa[] = [
-  { codigo: "001", nombre: "Ban100" },
-  { codigo: "002", nombre: "Compensar" },
-  // { codigo: "003", nombre: "Bancolombia" },
-  // { codigo: "004", nombre: "Banco de Bogotá" },
-  // { codigo: "005", nombre: "Banco Popular" },
-  // { codigo: "006", nombre: "BBVA" },
-  // { codigo: "007", nombre: "Banco Caja Social" },
-  // { codigo: "008", nombre: "Banco Agrario de Colombia" },
-  // { codigo: "009", nombre: "Banco AV Villas" },
-  // { codigo: "010", nombre: "Banco Cooperativo Coopcentral" },
-];
 
 // Función para obtener el último día del mes anterior
 const getLastDayOfPreviousMonth = (): Date => {
@@ -111,6 +104,30 @@ export default function CargaArchivos() {
   const [loading, setLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
+  const {
+    entidades: universalidadesRaw,
+    cargando: cargandoUniversalidades,
+    error: errorUniversalidades,
+  } = useEntidades<UniversalidadOData>("/Universalidades");
+
+  const universalidades = useMemo(() => {
+    const mapped = (universalidadesRaw ?? []).map((u) => {
+      const codigo = String(u.Codigo ?? u.codigo ?? "").trim();
+      const descripcion = String(u.Descripcion ?? u.descripcion ?? "").trim();
+      const estado = String(u.Estado ?? u.estado ?? u.Activo ?? u.activo ?? "")
+        .trim()
+        .toUpperCase();
+
+      return { codigo, descripcion, estado };
+    });
+
+    const activas = mapped
+      .filter((u) => u.codigo && (u.estado === "A" || u.estado === "ACTIVO"))
+      .sort((a, b) => a.codigo.localeCompare(b.codigo));
+
+    return [...activas];
+  }, [universalidadesRaw]);
+
   // preview rows for grid
   const [previewRows, setPreviewRows] = useState<Record<string, string>[]>([]);
   const [detallesCarga, setDetallesCarga] = useState<ArchivosCargaDetalle[]>(
@@ -120,9 +137,9 @@ export default function CargaArchivos() {
   const openFilePicker = () => fileInputRef.current?.click();
 
   const handleEmpresaChange = (codigo: string) => {
-    const empresa = empresasPrueba.find((e) => e.codigo === codigo);
+    const empresa = universalidades.find((e) => e.codigo === codigo);
     setCodigoEmpresa(codigo);
-    setNombreEmpresa(empresa?.nombre || "");
+    setNombreEmpresa(empresa?.descripcion || "");
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -558,17 +575,16 @@ export default function CargaArchivos() {
           </Grid>
 
           <Grid size={4}>
-            <FormControl fullWidth>
+            <FormControl fullWidth disabled={loading || cargandoUniversalidades}>
               <InputLabel>Universalidad</InputLabel>
               <Select
                 value={codigoEmpresa}
                 label="Universalidad"
                 onChange={(e) => handleEmpresaChange(e.target.value)}
-                disabled={loading}
               >
-                {empresasPrueba.map((empresa) => (
+                {universalidades.map((empresa) => (
                   <MenuItem key={empresa.codigo} value={empresa.codigo}>
-                    {empresa.codigo} - {empresa.nombre}
+                    {`${empresa.codigo} - ${empresa.descripcion}`}
                   </MenuItem>
                 ))}
               </Select>
@@ -646,6 +662,12 @@ export default function CargaArchivos() {
               </ul>
             </Alert>
           </Box>
+        )}
+
+        {errorUniversalidades && (
+          <Alert sx={{ mt: 2 }} severity="error">
+            Error al cargar universalidades: {errorUniversalidades}
+          </Alert>
         )}
 
         <Typography

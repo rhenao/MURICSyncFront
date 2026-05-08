@@ -1,6 +1,6 @@
 import { useEntidades } from "../../../hooks/useEntidades";
 import { MaterialReactTable, type MRT_ColumnDef } from "material-react-table";
-import { Button, Card, Typography } from "@mui/material";
+import { Box, Button, Card, Chip, Typography } from "@mui/material";
 import useAuth from "../../auth/hooks/useAuth";
 
 export interface ColumnConfig {
@@ -72,10 +72,13 @@ export default function ListGeneral({
         alignItems: "stretch",
         justifyContent: "flex-start",
         boxSizing: "border-box",
-        backgroundColor: "background.default",
-        p: 2,
+        border: "1px solid",
+        borderColor: "divider",
+        backgroundColor: "background.paper",
+        p: { xs: 1, md: 1.5 },
         minWidth: 0,
         maxWidth: "100vw",
+        borderRadius: 3,
       }}
     >
       <MaterialReactTable
@@ -89,10 +92,20 @@ export default function ListGeneral({
         enableColumnFilters={false}
         enableSorting
         enablePagination={false}
+        enableStickyHeader
+        enableGlobalFilter
+        enableDensityToggle={false}
+        enableFullScreenToggle={false}
         muiTableProps={{
           size: "small",
         }}
-        muiTableBodyRowProps={{ hover: true }}
+        muiTableBodyRowProps={({ row }) => ({
+          hover: true,
+          sx: {
+            backgroundColor:
+              row.index % 2 === 0 ? "rgba(37, 64, 146, 0.02)" : "transparent",
+          },
+        })}
         muiTableContainerProps={{
           sx: {
             width: "100%",
@@ -101,6 +114,10 @@ export default function ListGeneral({
             maxWidth: "100vw",
             alignItems: "flex-start",
             backgroundColor: "background.paper",
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 2,
+            maxHeight: "68vh",
           },
         }}
         muiTablePaperProps={{
@@ -113,12 +130,39 @@ export default function ListGeneral({
             backgroundColor: "background.paper",
           },
         }}
-        muiTableHeadCellProps={{ sx: { fontSize: "1.15rem" } }}
-        muiTableBodyCellProps={{ sx: { fontSize: "1.1rem" } }}
+        muiTableHeadCellProps={{
+          sx: {
+            fontSize: "0.95rem",
+            fontWeight: 700,
+            backgroundColor: "rgba(37, 64, 146, 0.08)",
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          },
+        }}
+        muiTableBodyCellProps={{ sx: { fontSize: "0.9rem" } }}
         renderTopToolbarCustomActions={() => (
-          <Typography variant="h6" sx={{ pl: 2 }} color="text.secondary">
-            Tabla - {title}
-          </Typography>
+          <Box
+            sx={{
+              px: 1,
+              py: 0.5,
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+              flexWrap: "wrap",
+            }}
+          >
+            <Typography variant="h6" color="text.primary" sx={{ fontWeight: 700 }}>
+              {title}
+            </Typography>
+            <Chip
+              label={`${(entidades ?? []).length} registros`}
+              size="small"
+              color="primary"
+              variant="outlined"
+            />
+          </Box>
         )}
       />
     </Card>

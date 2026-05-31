@@ -15,6 +15,7 @@ import {
   SendAndArchive,
   AccountTree,
   CloudUpload,
+  FileCopy,
   //FolderOpen,
   //ForwardToInbox,
   Group,
@@ -337,11 +338,11 @@ export function Menu() {
           <List component="div" disablePadding dense>
             <ListItemButton
               component={NavLink}
-              to="/config-mapeo-carga"
+              to="/app/plantillas-carga"
               sx={{ pl: 6, py: 0.1 }}
             >
-              <ListItemIcon><AccountTree fontSize="small" color="primary" /></ListItemIcon>
-              <ListItemText primary="Configurar mapeo de carga" />
+              <ListItemIcon><FileCopy fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Plantillas de carga" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
@@ -350,6 +351,14 @@ export function Menu() {
             >
               <ListItemIcon><CloudUpload fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Cargue de archivos" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="/config-mapeo-carga"
+              sx={{ pl: 6, py: 0.1, display: "none" }}
+            >
+              <ListItemIcon><AccountTree fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Configurar mapeo de carga" />
             </ListItemButton>
           </List>
         </Collapse>

@@ -3,338 +3,291 @@ import {
   Alert,
   Box,
   Button,
-  //Chip,
+  Chip,
   FormControl,
   InputLabel,
   LinearProgress,
   MenuItem,
   Paper,
   Select,
-  //Stack,
-  Tab,
-  Tabs,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
+import SearchIcon from "@mui/icons-material/Search";
+import axiosSecurityAPIClient from "../../../api/axiosSecurityAPIClient";
 import { useEntidades } from "../../../hooks/useEntidades";
 
-type TipoInforme = "creditos" | "movimientos";
-
-type ResultadoConsulta = {
+interface LoteResponse {
   id: number;
-  universalidad: string;
-  periodo: string;
-  totalRegistros: number;
-  totalValor: number;
-};
+  fechaCorte: string;
+  tipoEntidad: number;
+  codigoEntidad: number;
+  estado: string;
+  fechaCreacion: string;
+  usuarioCreador: string;
+  fechaPromocion: string | null;
+  usuarioPromotor: string | null;
+  observaciones: string | null;
+}
 
-type ResultadosPorTipo = Record<TipoInforme, ResultadoConsulta[] | null>;
+interface LoteDetalleResponse extends LoteResponse {
+  conteos: {
+    creditos: number;
+    atributos: number;
+    movimientos: number;
+  } | null;
+}
 
 interface UniversalidadOData {
   Codigo?: string | number;
   Descripcion?: string;
   Estado?: string;
-  Activo?: string;
-  codigo?: string | number;
-  descripcion?: string;
-  estado?: string;
-  activo?: string;
 }
 
-const INFORME_LABELS: Record<TipoInforme, string> = {
-  creditos: "Totales de Créditos enviados",
-  movimientos: "Totales de Movimiento de cartera",
-};
+const ESTADOS = ["", "Creado", "Validado", "Promovido", "Anulado"];
 
-const toPeriodoLabel = (periodo: string): string => periodo.replace("-", "/");
-
-const buildMockResultados = (
-  tipo: TipoInforme,
-  periodoInicial: string,
-  periodoFinal: string,
-  universalidad: string
-): ResultadoConsulta[] => {
-  const base = tipo === "creditos" ? 1000 : 500;
-  const mult = tipo === "creditos" ? 12 : 7;
-  const uniLabel = universalidad === "TODAS" ? "Todas" : universalidad;
-
-  return [1, 2, 3].map((row) => ({
-    id: row,
-    universalidad: uniLabel,
-    periodo:
-      row === 1
-        ? `${toPeriodoLabel(periodoInicial)} - ${toPeriodoLabel(periodoFinal)}`
-        : `${toPeriodoLabel(periodoInicial)}`,
-    totalRegistros: base * row + Math.floor(Math.random() * 180),
-    totalValor: (base * mult * row + Math.floor(Math.random() * 400)) * 1000,
-  }));
+const ESTADO_COLOR: Record<
+  string,
+  "default" | "primary" | "warning" | "success" | "error"
+> = {
+  Creado: "primary",
+  Validado: "warning",
+  Promovido: "success",
+  Anulado: "default",
 };
 
 export default function ConsultasMURIC() {
-  const todayMonth = new Date().toISOString().slice(0, 7);
+  const [fechaCorte, setFechaCorte] = useState("");
+  const [codigoEntidad, setCodigoEntidad] = useState("");
+  const [estado, setEstado] = useState("");
 
-  const [periodoInicial, setPeriodoInicial] = useState<string>(todayMonth);
-  const [periodoFinal, setPeriodoFinal] = useState<string>(todayMonth);
-  const [codigoUniversalidad, setCodigoUniversalidad] =
-    useState<string>("TODAS");
-  const [tipoInforme, setTipoInforme] = useState<TipoInforme>("creditos");
-  const [tabActiva, setTabActiva] = useState<TipoInforme>("creditos");
-  const [resultados, setResultados] = useState<ResultadosPorTipo>({
-    creditos: null,
-    movimientos: null,
-  });
-  const [loading, setLoading] = useState(false);
-  const [errorValidacion, setErrorValidacion] = useState<string | null>(null);
+  const [lotes, setLotes] = useState<LoteDetalleResponse[]>([]);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [buscado, setBuscado] = useState(false);
 
-  const {
-    entidades: universalidadesRaw,
-    cargando: cargandoUniversalidades,
-    error: errorUniversalidades,
-  } = useEntidades<UniversalidadOData>("/Universalidades");
+  const { entidades: uRaw, cargando: cargandoUniv } =
+    useEntidades<UniversalidadOData>("/Universalidades");
+  const universalidades = useMemo(
+    () =>
+      (uRaw ?? [])
+        .filter((u) => String(u.Estado ?? "").toUpperCase() === "A")
+        .map((u) => ({
+          codigo: String(u.Codigo ?? ""),
+          descripcion: String(u.Descripcion ?? ""),
+        }))
+        .sort((a, b) => a.codigo.localeCompare(b.codigo)),
+    [uRaw]
+  );
 
-  const universalidades = useMemo(() => {
-    const mapped = (universalidadesRaw ?? []).map((u) => {
-      const codigo = String(u.Codigo ?? u.codigo ?? "").trim();
-      const descripcion = String(u.Descripcion ?? u.descripcion ?? "").trim();
-      const estado = String(u.Estado ?? u.estado ?? u.Activo ?? u.activo ?? "")
-        .trim()
-        .toUpperCase();
-
-      return { codigo, descripcion, estado };
-    });
-
-    const activas = mapped
-      .filter((u) => u.codigo && (u.estado === "A" || u.estado === "ACTIVO"))
-      .sort((a, b) => a.codigo.localeCompare(b.codigo));
-
-    return [{ codigo: "TODAS", descripcion: "Todas" }, ...activas];
-  }, [universalidadesRaw]);
-
-  const handleObtener = async () => {
-    if (!periodoInicial || !periodoFinal) {
-      setErrorValidacion("Debes seleccionar periodo inicial y final.");
-      return;
-    }
-
-    if (periodoInicial > periodoFinal) {
-      setErrorValidacion("El periodo inicial no puede ser mayor al periodo final.");
-      return;
-    }
-
-    setErrorValidacion(null);
-    setLoading(true);
-
+  const handleBuscar = async () => {
+    setCargando(true);
+    setError(null);
+    setBuscado(false);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 650));
+      const params: Record<string, string> = {};
+      if (fechaCorte) params.fechaCorte = fechaCorte;
+      if (codigoEntidad) params.codigoEntidad = codigoEntidad;
+      if (estado) params.estado = estado;
 
-      const data = buildMockResultados(
-        tipoInforme,
-        periodoInicial,
-        periodoFinal,
-        codigoUniversalidad
+      const { data: lista } = await axiosSecurityAPIClient.get<LoteResponse[]>(
+        "/cargas",
+        { params }
       );
 
-      setResultados((prev) => ({
-        ...prev,
-        [tipoInforme]: data,
-      }));
+      // Fetch detail per lote to get conteos (parallel; result sets are small when filtered)
+      const detalles = await Promise.allSettled(
+        lista.map((l) =>
+          axiosSecurityAPIClient
+            .get<LoteDetalleResponse>(`/cargas/${l.id}`)
+            .then((r) => r.data)
+        )
+      );
 
-      setTabActiva(tipoInforme);
+      const merged: LoteDetalleResponse[] = lista.map((l, i) => {
+        const d = detalles[i];
+        return d.status === "fulfilled" ? d.value : { ...l, conteos: null };
+      });
+
+      setLotes(merged);
+      setBuscado(true);
+    } catch (err) {
+      const d = (err as { response?: { data?: unknown } })?.response?.data;
+      setError(
+        typeof d === "string"
+          ? d
+          : err instanceof Error
+          ? err.message
+          : "Error al consultar lotes"
+      );
     } finally {
-      setLoading(false);
+      setCargando(false);
     }
-  };
-
-  const renderTabla = (tipo: TipoInforme) => {
-    const data = resultados[tipo];
-
-    if (!data) {
-      return (
-        <Alert severity="info" variant="outlined">
-          Aun no se ha ejecutado la consulta para {INFORME_LABELS[tipo]}.
-        </Alert>
-      );
-    }
-
-    return (
-      <Box sx={{ overflowX: "auto" }}>
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: "180px 240px 160px 180px",
-            minWidth: 760,
-            border: "1px solid",
-            borderColor: "divider",
-            borderRadius: 1,
-          }}
-        >
-          <Box sx={{ p: 1.25, fontWeight: 700, bgcolor: "action.hover" }}>ID</Box>
-          <Box sx={{ p: 1.25, fontWeight: 700, bgcolor: "action.hover" }}>
-            Universalidad
-          </Box>
-          <Box sx={{ p: 1.25, fontWeight: 700, bgcolor: "action.hover" }}>
-            Periodo
-          </Box>
-          <Box
-            sx={{
-              p: 1.25,
-              fontWeight: 700,
-              bgcolor: "action.hover",
-              textAlign: "right",
-            }}
-          >
-            Total valor
-          </Box>
-
-          {data.map((item, idx) => (
-            <Box
-              key={`${tipo}-${item.id}-${idx}`}
-              sx={{ display: "contents" }}
-            >
-              <Box sx={{ p: 1.25, borderTop: "1px solid", borderColor: "divider" }}>
-                {item.id}
-              </Box>
-              <Box sx={{ p: 1.25, borderTop: "1px solid", borderColor: "divider" }}>
-                {item.universalidad}
-              </Box>
-              <Box sx={{ p: 1.25, borderTop: "1px solid", borderColor: "divider" }}>
-                {item.periodo}
-              </Box>
-              <Box
-                sx={{
-                  p: 1.25,
-                  borderTop: "1px solid",
-                  borderColor: "divider",
-                  textAlign: "right",
-                }}
-              >
-                {item.totalValor.toLocaleString("es-CO")}
-              </Box>
-            </Box>
-          ))}
-        </Box>
-      </Box>
-    );
   };
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Paper sx={{ p: 2, mb: 2 }}>
-        {/* <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6">Generar consultas MURIC</Typography>
-          <Chip label="Prototipo" color="info" variant="outlined" />
-        </Stack> */}
-
-        <Grid container spacing={2} alignItems="flex-start">
-          <Grid size={{ xs: 12, md: 3 }}>
+    <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+      {/* ── Filtros ── */}
+      <Paper sx={{ p: 2 }}>
+        <Typography variant="h6" fontWeight={700} mb={2}>
+          Consultas MURIC
+        </Typography>
+        <Grid container spacing={2} alignItems="flex-end">
+          <Grid size={2}>
             <TextField
+              label="Fecha de corte"
+              type="date"
               fullWidth
-              label="Periodo inicial"
-              type="month"
-              value={periodoInicial}
-              onChange={(e) => setPeriodoInicial(e.target.value)}
+              value={fechaCorte}
+              onChange={(e) => setFechaCorte(e.target.value)}
               slotProps={{ inputLabel: { shrink: true } }}
+              helperText="Opcional"
             />
           </Grid>
-
-          <Grid size={{ xs: 12, md: 3 }}>
-            <TextField
-              fullWidth
-              label="Periodo final"
-              type="month"
-              value={periodoFinal}
-              onChange={(e) => setPeriodoFinal(e.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-          </Grid>
-
-          <Grid size={{ xs: 12, md: 4 }}>
-            <FormControl fullWidth disabled={cargandoUniversalidades || loading}>
+          <Grid size={4}>
+            <FormControl fullWidth disabled={cargandoUniv || cargando}>
               <InputLabel>Universalidad</InputLabel>
               <Select
-                value={codigoUniversalidad}
+                value={codigoEntidad}
                 label="Universalidad"
-                onChange={(e) => setCodigoUniversalidad(String(e.target.value))}
+                onChange={(e) => setCodigoEntidad(e.target.value)}
               >
+                <MenuItem value="">
+                  <em>Todas</em>
+                </MenuItem>
                 {universalidades.map((u) => (
                   <MenuItem key={u.codigo} value={u.codigo}>
-                    {u.codigo === "TODAS"
-                      ? "Todas"
-                      : `${u.codigo} - ${u.descripcion}`}
+                    {u.codigo} — {u.descripcion}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
           </Grid>
-
-          <Grid size={{ xs: 12, md: 2 }}>
-            <FormControl fullWidth disabled={loading}>
-              <InputLabel>Informe</InputLabel>
+          <Grid size={2}>
+            <FormControl fullWidth disabled={cargando}>
+              <InputLabel>Estado</InputLabel>
               <Select
-                value={tipoInforme}
-                label="Informe"
-                onChange={(e) => setTipoInforme(e.target.value as TipoInforme)}
+                value={estado}
+                label="Estado"
+                onChange={(e) => setEstado(e.target.value)}
               >
-                <MenuItem value="creditos">
-                  Totales de Créditos enviados
-                </MenuItem>
-                <MenuItem value="movimientos">
-                  Totales de Movimiento de cartera
-                </MenuItem>
+                {ESTADOS.map((e) => (
+                  <MenuItem key={e} value={e}>
+                    {e || "Todos"}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
-
-          <Grid size={12}>
+          <Grid size={2}>
             <Button
               variant="contained"
-              onClick={handleObtener}
-              disabled={loading || cargandoUniversalidades}
+              startIcon={<SearchIcon />}
+              onClick={handleBuscar}
+              disabled={cargando}
             >
-              Obtener
+              Consultar
             </Button>
           </Grid>
         </Grid>
-
-        {loading && <LinearProgress sx={{ mt: 2 }} />}
-
-        {errorValidacion && (
-          <Alert sx={{ mt: 2 }} severity="warning">
-            {errorValidacion}
-          </Alert>
-        )}
-
-        {errorUniversalidades && (
-          <Alert sx={{ mt: 2 }} severity="error">
-            Error al cargar universalidades: {errorUniversalidades}
-          </Alert>
-        )}
+        {cargando && <LinearProgress sx={{ mt: 2 }} />}
       </Paper>
 
-      <Paper sx={{ p: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Resultados de consulta
-        </Typography>
+      {/* ── Error ── */}
+      {error && (
+        <Alert severity="error" onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
-        <Tabs
-          value={tabActiva}
-          onChange={(_, value: TipoInforme) => setTabActiva(value)}
-          sx={{ mb: 2 }}
-        >
-          <Tab
-            value="creditos"
-            label="Totales de Créditos enviados"
-          />
-          <Tab
-            value="movimientos"
-            label="Totales de Movimiento de cartera"
-          />
-        </Tabs>
+      {/* ── Resultados ── */}
+      {buscado && (
+        <Paper sx={{ p: 2 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center" mb={1.5}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              Resultados
+            </Typography>
+            <Chip
+              label={`${lotes.length} lote${lotes.length !== 1 ? "s" : ""}`}
+              size="small"
+              color={lotes.length > 0 ? "primary" : "default"}
+              variant="outlined"
+            />
+          </Stack>
 
-        {tabActiva === "creditos" && renderTabla("creditos")}
-        {tabActiva === "movimientos" && renderTabla("movimientos")}
-      </Paper>
+          {lotes.length === 0 ? (
+            <Alert severity="info" variant="outlined">
+              No se encontraron lotes con los filtros aplicados.
+            </Alert>
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>ID</TableCell>
+                    <TableCell>Fecha corte</TableCell>
+                    <TableCell>Entidad</TableCell>
+                    <TableCell>Estado</TableCell>
+                    <TableCell align="right">Créditos</TableCell>
+                    <TableCell align="right">Atributos</TableCell>
+                    <TableCell align="right">Movimientos</TableCell>
+                    <TableCell>Fecha promoción</TableCell>
+                    <TableCell>Creado por</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {lotes.map((lote) => (
+                    <TableRow key={lote.id}>
+                      <TableCell>
+                        <Chip
+                          label={`#${lote.id}`}
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                        />
+                      </TableCell>
+                      <TableCell>{lote.fechaCorte}</TableCell>
+                      <TableCell>{lote.codigoEntidad}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={lote.estado}
+                          size="small"
+                          color={ESTADO_COLOR[lote.estado] ?? "default"}
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        {lote.conteos?.creditos?.toLocaleString("es-CO") ?? "—"}
+                      </TableCell>
+                      <TableCell align="right">
+                        {lote.conteos?.atributos?.toLocaleString("es-CO") ?? "—"}
+                      </TableCell>
+                      <TableCell align="right">
+                        {lote.conteos?.movimientos?.toLocaleString("es-CO") ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        {lote.fechaPromocion
+                          ? new Date(lote.fechaPromocion).toLocaleDateString(
+                              "es-CO"
+                            )
+                          : "—"}
+                      </TableCell>
+                      <TableCell>{lote.usuarioCreador}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </Paper>
+      )}
     </Box>
   );
 }

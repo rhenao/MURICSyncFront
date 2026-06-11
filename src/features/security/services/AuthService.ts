@@ -10,6 +10,17 @@ export interface LoginRequest {
 }
 
 class AuthService {
+  private decodeTokenPermissions(token: string): string[] {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      const raw = payload['permission'];
+      if (!raw) return [];
+      return Array.isArray(raw) ? raw : [raw];
+    } catch {
+      return [];
+    }
+  }
+
   async login(credentials: LoginRequest): Promise<AuthResponseDto> {
     console.log("🔌 Iniciando petición de login con axiosSecurityAPIClient...");
     console.log("🔌 URL:", `${import.meta.env.VITE_API_URL_SECURITY}/auth/login`);
@@ -28,9 +39,12 @@ class AuthService {
       
       if (response.data.success && response.data.token) {
         console.log("💾 Guardando datos en localStorage...");
+        const permissions = this.decodeTokenPermissions(response.data.token);
+        const user = response.data.user ? { ...response.data.user, permissions } : response.data.user;
         localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+        localStorage.setItem('user', JSON.stringify(user));
         localStorage.setItem('tokenExpiry', response.data.expiresAt || '');
+        response.data.user = user;
       }
       
       return response.data;

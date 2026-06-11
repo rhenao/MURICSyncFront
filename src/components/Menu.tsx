@@ -18,13 +18,16 @@ import {
   FileCopy,
   //FolderOpen,
   //ForwardToInbox,
+  Assessment,
   Group,
+  Tune,
   VpnKey,
 } from "@mui/icons-material";
 import Logo from "./Logo";
 import { Box, Divider, styled, Typography } from "@mui/material";
 import theme from "../theme";
 import useAuth from "../features/auth/hooks/useAuth";
+import { usePermission } from "../features/auth/hooks/usePermission";
 
 const Banner = styled(Typography)(() => ({
   fontSize: 18,
@@ -54,6 +57,7 @@ export function Menu() {
   const [openSendMuric, setOpenSendMuric] = React.useState(false);
   const [openReports, setOpenReports] = React.useState(false);
   const { user } = useAuth();
+  const { hasPermission } = usePermission();
 
   const roles = user?.roles ?? [];
   const hasRole = (...r: string[]) => r.some((rol) => roles.includes(rol));
@@ -64,7 +68,13 @@ export function Menu() {
   const canConsultas = hasRole("ADMIN", "OPERADOR", "CONSULTA");
   const canAdminUsuarios = hasRole("ADMIN", "SEGURIDAD");
   const canCambioContrasena = hasRole("ADMIN", "OPERADOR", "SEGURIDAD", "CONSULTA");
-  const canSeguridad = canAdminUsuarios || canCambioContrasena;
+  const canGestionRoles = hasPermission("roles.manage");
+ 
+  console.log("Permisos del usuario:", { canAdmin, canCargue, canEnvio, canConsultas, canAdminUsuarios, canCambioContrasena, canGestionRoles }); 
+
+  const canReporteUsuarios = hasPermission("usuarios.read");
+  const canConfigSeguridad = hasPermission("seguridad.manage");
+  const canSeguridad = canAdminUsuarios || canCambioContrasena || canGestionRoles || canReporteUsuarios || canConfigSeguridad;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -455,6 +465,46 @@ export function Menu() {
             >
               <ListItemIcon><VpnKey fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Cambio de contraseña" />
+            </ListItemButton>
+            )}
+            {canGestionRoles && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/lista-roles"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><AdminPanelSettings fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Gestión de Roles" />
+            </ListItemButton>
+            )}
+            {canGestionRoles && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/lista-permisos"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><VpnKey fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Gestión de Permisos" />
+            </ListItemButton>
+            )}
+            {canReporteUsuarios && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/reporte-usuarios"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><Assessment fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Reporte de Usuarios" />
+            </ListItemButton>
+            )}
+            {canConfigSeguridad && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/config-seguridad"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><Tune fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Parámetros de Seguridad" />
             </ListItemButton>
             )}
           </List>

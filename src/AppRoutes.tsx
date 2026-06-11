@@ -33,6 +33,8 @@ import ListPeriodicidad from "./features/param/components/ListPeriodicidad";
 import ListSexoBiologico from "./features/param/components/ListSexoBiologico";
 import ListTipoTasa from "./features/param/components/ListTipoTasa";
 import ListUsers from "./features/security/components/ListUsers";
+import ListRoles from "./features/security/components/ListRoles";
+import ListPermissions from "./features/security/components/ListPermissions";
 import PasswordChange from "./features/security/components/PasswordChange.tsx";
 import CargaArchivos from "./features/upload/components/CargaArchivos.tsx";
 import ConfigMapeoCarga from "./features/upload/components/ConfigMapeoCarga";
@@ -41,6 +43,8 @@ import EnviaMURIC from "./features/submission/components/EnviaMURIC";
 import RequireAuth from "./features/auth/components/RequireAuth";
 import ListUniversalidades from "./features/param/components/ListUniversalidades.tsx";
 import ConsultasMURIC from "./features/queries/components/ConsultasMURIC";
+import ReporteUsuarios from "./features/security/components/ReporteUsuarios";
+import FormConfigSeguridad from "./features/security/components/FormConfigSeguridad";
 
 export default function AppRoutes() {
   return (
@@ -161,11 +165,15 @@ export default function AppRoutes() {
         <Route path="/app/lista-universalidades" element={<ListUniversalidades />} />
         <Route path="/app/lista-tipo-tasa" element={<ListTipoTasa />} />
         <Route path="/app/lista-usuarios" element={<ListUsers />} />
+        <Route path="/app/lista-roles" element={<ListRoles />} />
+        <Route path="/app/lista-permisos" element={<ListPermissions />} />
         <Route path="/app/cambiar-contrasena" element={<PasswordChange />} />
         <Route path="/app/carga-archivos" element={<CargaArchivos />} />
         <Route path="/app/plantillas-carga" element={<ListPlantillas />} />
         <Route path="/app/envio-muric" element={<EnviaMURIC />} />
         <Route path="/app/consultas-muric" element={<ConsultasMURIC />} />
+        <Route path="/app/reporte-usuarios" element={<ReporteUsuarios />} />
+        <Route path="/app/config-seguridad" element={<FormConfigSeguridad />} />
         <Route path="/config-mapeo-carga" element={<ConfigMapeoCarga />} />
       </Route>
 

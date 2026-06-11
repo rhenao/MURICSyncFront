@@ -8,5 +8,6 @@ export interface UserInfoDto {
   isActive?: boolean;
   numDocument?: string;
   roles: string[];
+  permissions: string[];
 }
 

@@ -45,6 +45,8 @@ import ListUniversalidades from "./features/param/components/ListUniversalidades
 import ConsultasMURIC from "./features/queries/components/ConsultasMURIC";
 import ReporteUsuarios from "./features/security/components/ReporteUsuarios";
 import FormConfigSeguridad from "./features/security/components/FormConfigSeguridad";
+import AuditLogPage from "./features/audit/components/AuditLogPage";
+import Forbidden from "./components/Forbidden";
 
 export default function AppRoutes() {
   return (
@@ -174,6 +176,8 @@ export default function AppRoutes() {
         <Route path="/app/consultas-muric" element={<ConsultasMURIC />} />
         <Route path="/app/reporte-usuarios" element={<ReporteUsuarios />} />
         <Route path="/app/config-seguridad" element={<FormConfigSeguridad />} />
+        <Route path="/app/audit-logs" element={<AuditLogPage />} />
+        <Route path="/app/forbidden" element={<Forbidden />} />
         <Route path="/config-mapeo-carga" element={<ConfigMapeoCarga />} />
       </Route>
 

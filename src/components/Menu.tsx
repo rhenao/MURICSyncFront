@@ -20,6 +20,7 @@ import {
   //ForwardToInbox,
   Assessment,
   Group,
+  ManageSearch,
   Tune,
   VpnKey,
 } from "@mui/icons-material";
@@ -74,7 +75,8 @@ export function Menu() {
 
   const canReporteUsuarios = hasPermission("usuarios.read");
   const canConfigSeguridad = hasPermission("seguridad.manage");
-  const canSeguridad = canAdminUsuarios || canCambioContrasena || canGestionRoles || canReporteUsuarios || canConfigSeguridad;
+  const canAuditLogs = hasRole("ADMIN", "AuditViewer");
+  const canSeguridad = canAdminUsuarios || canCambioContrasena || canGestionRoles || canReporteUsuarios || canConfigSeguridad || canAuditLogs;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -505,6 +507,16 @@ export function Menu() {
             >
               <ListItemIcon><Tune fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Parámetros de Seguridad" />
+            </ListItemButton>
+            )}
+            {canAuditLogs && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/audit-logs"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><ManageSearch fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Logs de auditoría" />
             </ListItemButton>
             )}
           </List>

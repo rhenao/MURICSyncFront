@@ -175,7 +175,7 @@ export default function TableAtributos() {
         item.razonSocial.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+  const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 

@@ -192,7 +192,7 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
       setNombre(plantilla.nombre);
       setDescripcion(plantilla.descripcion);
       setInsumo(plantilla.insumo);
-      setFilas(plantilla.campos.map(campoToFila));
+      setFilas(plantilla.campos?.map(campoToFila));
     } else {
       setNombre('');
       setDescripcion('');

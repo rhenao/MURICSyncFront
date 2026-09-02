@@ -41,6 +41,8 @@ import ConfigMapeoCarga from "./features/upload/components/ConfigMapeoCarga";
 import ListPlantillas from "./features/upload/components/ListPlantillas";
 import EnviaMURIC from "./features/submission/components/EnviaMURIC";
 import RequireAuth from "./features/auth/components/RequireAuth";
+import RequireRole from "./features/auth/components/RequireRole";
+import RequirePermission from "./features/auth/components/RequirePermission";
 import ListUniversalidades from "./features/param/components/ListUniversalidades.tsx";
 import ConsultasMURIC from "./features/queries/components/ConsultasMURIC";
 import ReporteUsuarios from "./features/security/components/ReporteUsuarios";
@@ -166,17 +168,59 @@ export default function AppRoutes() {
         />
         <Route path="/app/lista-universalidades" element={<ListUniversalidades />} />
         <Route path="/app/lista-tipo-tasa" element={<ListTipoTasa />} />
-        <Route path="/app/lista-usuarios" element={<ListUsers />} />
-        <Route path="/app/lista-roles" element={<ListRoles />} />
-        <Route path="/app/lista-permisos" element={<ListPermissions />} />
+        <Route
+          path="/app/lista-usuarios"
+          element={
+            <RequireRole allowedRoles={["ADMIN", "SEGURIDAD"]}>
+              <ListUsers />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/app/lista-roles"
+          element={
+            <RequirePermission requiredPermissions={["roles.manage"]}>
+              <ListRoles />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/app/lista-permisos"
+          element={
+            <RequirePermission requiredPermissions={["roles.manage"]}>
+              <ListPermissions />
+            </RequirePermission>
+          }
+        />
         <Route path="/app/cambiar-contrasena" element={<PasswordChange />} />
         <Route path="/app/carga-archivos" element={<CargaArchivos />} />
         <Route path="/app/plantillas-carga" element={<ListPlantillas />} />
         <Route path="/app/envio-muric" element={<EnviaMURIC />} />
         <Route path="/app/consultas-muric" element={<ConsultasMURIC />} />
-        <Route path="/app/reporte-usuarios" element={<ReporteUsuarios />} />
-        <Route path="/app/config-seguridad" element={<FormConfigSeguridad />} />
-        <Route path="/app/audit-logs" element={<AuditLogPage />} />
+        <Route
+          path="/app/reporte-usuarios"
+          element={
+            <RequirePermission requiredPermissions={["usuarios.read"]}>
+              <ReporteUsuarios />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/app/config-seguridad"
+          element={
+            <RequirePermission requiredPermissions={["seguridad.manage"]}>
+              <FormConfigSeguridad />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/app/audit-logs"
+          element={
+            <RequireRole allowedRoles={["ADMIN", "AuditViewer"]}>
+              <AuditLogPage />
+            </RequireRole>
+          }
+        />
         <Route path="/app/forbidden" element={<Forbidden />} />
         <Route path="/config-mapeo-carga" element={<ConfigMapeoCarga />} />
       </Route>

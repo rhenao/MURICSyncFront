@@ -22,6 +22,8 @@ Two `.env` files are tracked: `.env` (local dev) and `.env.production`.
 | `VITE_API_URL` | Base URL for OData API (e.g. `https://localhost:7167/odata/v1`) |
 | `VITE_API_URL_SECURITY` | Base URL for Security/Auth API (e.g. `https://localhost:7167/api`) |
 
+**Security note:** these files are intentionally committed and currently hold only base URLs, no secrets. Keep it that way — never add API keys, credentials, or tokens to `.env`/`.env.production`, since anything in them ships to git history. If a future value needs to be secret, inject it via the CI/CD pipeline instead of committing it here.
+
 ## Architecture
 
 ### Feature-based structure
@@ -74,6 +76,8 @@ After adding a new param list component, register its route in `src/AppRoutes.ts
 ### Auth flow
 
 1. `AuthProvider` wraps the app and exposes `{ isAuthenticated, user, login, logout }` via context.
-2. `RequireAuth` wraps all protected routes — redirects to `/login` if not authenticated.
+2. `RequireAuth` wraps all protected routes — redirects to `/login` if not authenticated. `RequireRole` (role-based) and `RequirePermission` (permission-code-based) wrap individual sensitive routes in `AppRoutes.tsx` — see the route table there for which routes use which.
 3. `AuthService` is a singleton class that handles the actual API call and `localStorage` persistence.
-4. `user.roles` (array of strings) controls ADMIN-specific UI — currently only the edit column in `ListGeneral`.
+4. `user.roles` (array of strings) and `user.permissions` (array of permission codes, decoded from the JWT at login) control role/permission-gated UI (menu items in `Menu.tsx`, the edit column in `ListGeneral`, and the route guards above).
+
+**Security note:** the token, user object, and `tokenExpiry` all live in `localStorage` as plain, editable JSON. Session-expiry checks in `AuthService.isAuthenticated()` and the two Axios client interceptors compare against `tokenExpiry` from `localStorage` — this is a UX convenience only, not a real security boundary, since a user can edit it (or `user.roles`/`user.permissions`) from DevTools. The backend must independently validate the JWT's signature, expiry, and claims on every request; never treat client-side auth/role/permission checks as authoritative. If the backend ever exposes `httpOnly` + `SameSite` cookies for session storage, revisit moving off `localStorage`.

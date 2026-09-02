@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { Navigate } from "react-router-dom";
 import { MaterialReactTable, type MRT_ColumnDef } from "material-react-table";
 import {
   Button,
@@ -18,7 +17,6 @@ import { Add as AddIcon } from "@mui/icons-material";
 import { AxiosError } from "axios";
 import type { RoleWithPermissions } from "../models/Role.model";
 import RoleService from "../services/RoleService";
-import { usePermission } from "../../auth/hooks/usePermission";
 import DialogRole from "./DialogRole";
 import DialogAssignPermissions from "./DialogAssignPermissions";
 
@@ -35,7 +33,6 @@ function extractErrorMessage(err: unknown): string {
 const PREDEFINED_ROLES = new Set(["ADMIN", "CONSULTA", "OPERADOR", "SEGURIDAD"]);
 
 export default function ListRoles() {
-  const { hasPermission } = usePermission();
   const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,10 +61,6 @@ export default function ListRoles() {
   useEffect(() => {
     loadRoles();
   }, [loadRoles]);
-
-  if (!hasPermission("roles.manage")) {
-    return <Navigate to="/app" replace />;
-  }
 
   const handleEdit = (role: RoleWithPermissions) => {
     setEditingRole(role);

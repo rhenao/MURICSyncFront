@@ -22,9 +22,11 @@ class AuthService {
   }
 
   async login(credentials: LoginRequest): Promise<AuthResponseDto> {
-    console.log("🔌 Iniciando petición de login con axiosSecurityAPIClient...");
-    console.log("🔌 URL:", `${import.meta.env.VITE_API_URL_SECURITY}/auth/login`);
-    
+    if (import.meta.env.DEV) {
+      console.log("🔌 Iniciando petición de login con axiosSecurityAPIClient...");
+      console.log("🔌 URL:", `${import.meta.env.VITE_API_URL_SECURITY}/auth/login`);
+    }
+
     try {
       const response = await axiosSecurityAPIClient.post<AuthResponseDto>(
         '/auth/login',
@@ -34,11 +36,8 @@ class AuthService {
           rememberMe: credentials.rememberMe
         }
       );
-      
-      console.log("📥 Respuesta exitosa del servidor:", response.data);
-      
+
       if (response.data.success && response.data.token) {
-        console.log("💾 Guardando datos en localStorage...");
         const permissions = this.decodeTokenPermissions(response.data.token);
         const user = response.data.user ? { ...response.data.user, permissions } : response.data.user;
         localStorage.setItem('token', response.data.token);
@@ -46,24 +45,24 @@ class AuthService {
         localStorage.setItem('tokenExpiry', response.data.expiresAt || '');
         response.data.user = user;
       }
-      
+
       return response.data;
     } catch (error: unknown) {
-      console.error("❌ Error en AuthService.login:", error);
-      
-      if (error instanceof AxiosError) {
-        console.error("❌ AxiosError details:");
-        console.error("   Status:", error.response?.status);
-        console.error("   Data:", error.response?.data);
-        console.error("   URL:", error.config?.url);
-        
-        if (error.response?.data) {
-          console.log("🔄 Retornando error del servidor:", error.response.data);
-          return error.response.data as AuthResponseDto;
+      if (import.meta.env.DEV) {
+        console.error("❌ Error en AuthService.login:", error);
+
+        if (error instanceof AxiosError) {
+          console.error("❌ AxiosError details:");
+          console.error("   Status:", error.response?.status);
+          console.error("   Data:", error.response?.data);
+          console.error("   URL:", error.config?.url);
         }
       }
-      
-      console.log("🔄 Retornando error genérico");
+
+      if (error instanceof AxiosError && error.response?.data) {
+        return error.response.data as AuthResponseDto;
+      }
+
       return {
         success: false,
         errors: ['Error de conexión. Verifique su conexión a internet.']

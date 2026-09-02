@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import {
   Alert,
@@ -18,7 +17,6 @@ import type {
   SecuritySettingsDto,
   UpdateSecuritySettingsDto,
 } from "../models/SecuritySettings.model";
-import { usePermission } from "../../auth/hooks/usePermission";
 
 interface FormState {
   passwordRequireDigit: boolean;
@@ -70,8 +68,6 @@ function extractErrorMessage(err: unknown): string {
 }
 
 export default function FormConfigSeguridad() {
-  const { hasPermission } = usePermission();
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [initialForm, setInitialForm] = useState<FormState | null>(null);
@@ -104,10 +100,6 @@ export default function FormConfigSeguridad() {
       cancelled = true;
     };
   }, []);
-
-  if (!hasPermission("seguridad.manage")) {
-    return <Navigate to="/app" replace />;
-  }
 
   if (loading) {
     return (

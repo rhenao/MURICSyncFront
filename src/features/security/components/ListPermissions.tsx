@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { Navigate } from "react-router-dom";
 import { MaterialReactTable, type MRT_ColumnDef } from "material-react-table";
 import {
   Button,
@@ -18,7 +17,6 @@ import { Add as AddIcon } from "@mui/icons-material";
 import { AxiosError } from "axios";
 import type { Permission } from "../models/Permission.model";
 import PermissionService from "../services/PermissionService";
-import { usePermission } from "../../auth/hooks/usePermission";
 import DialogPermission from "./DialogPermission";
 
 const MODULE_COLORS: Record<string, "primary" | "info" | "success" | "warning" | "error" | "default"> = {
@@ -45,7 +43,6 @@ function extractErrorMessage(err: unknown): string {
 }
 
 export default function ListPermissions() {
-  const { hasPermission } = usePermission();
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,10 +69,6 @@ export default function ListPermissions() {
   useEffect(() => {
     loadPermissions();
   }, [loadPermissions]);
-
-  if (!hasPermission("roles.manage")) {
-    return <Navigate to="/app" replace />;
-  }
 
   const handleEdit = (perm: Permission) => {
     setEditingPerm(perm);

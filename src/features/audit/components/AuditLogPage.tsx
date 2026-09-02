@@ -1,13 +1,10 @@
 import { Box, Typography } from '@mui/material';
-import RequireRole from '../../auth/components/RequireRole';
 import { useAuditLogs } from '../hooks/useAuditLogs';
 import AuditLogFilters from './AuditLogFilters';
 import AuditLogTable from './AuditLogTable';
 import type { AuditLogFilter } from '../models/AuditLog.model';
 
-const ALLOWED_ROLES = ['AuditViewer', 'ADMIN'];
-
-function AuditLogContent() {
+export default function AuditLogPage() {
   const { data, loading, error, filters, setFilters, resetFilters, retry } = useAuditLogs();
 
   const handleApply = (applied: AuditLogFilter) => {
@@ -38,13 +35,5 @@ function AuditLogContent() {
         onRetry={retry}
       />
     </Box>
-  );
-}
-
-export default function AuditLogPage() {
-  return (
-    <RequireRole allowedRoles={ALLOWED_ROLES}>
-      <AuditLogContent />
-    </RequireRole>
   );
 }

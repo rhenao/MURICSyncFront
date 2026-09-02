@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { Navigate } from "react-router-dom";
 import { MaterialReactTable, type MRT_ColumnDef } from "material-react-table";
 import {
   Alert,
@@ -18,7 +17,6 @@ import {
 import { DownloadOutlined as DownloadIcon } from "@mui/icons-material";
 import type { UserReportItemDto, UserReportFilterDto } from "../models/UserReport.model";
 import UserReportService from "../services/UserReportService";
-import { usePermission } from "../../auth/hooks/usePermission";
 
 interface FilterInputs {
   isActive: "" | "true" | "false";
@@ -47,8 +45,6 @@ function toApiFilter(f: FilterInputs): Omit<UserReportFilterDto, "page" | "pageS
 }
 
 export default function ReporteUsuarios() {
-  const { hasPermission } = usePermission();
-
   const [filterInputs, setFilterInputs] = useState<FilterInputs>(EMPTY_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<FilterInputs>(EMPTY_FILTERS);
   const [pageIndex, setPageIndex] = useState(0);
@@ -84,10 +80,6 @@ export default function ReporteUsuarios() {
   useEffect(() => {
     fetchData(appliedFilters, pageIndex, pageSize);
   }, [appliedFilters, pageIndex, pageSize, fetchData]);
-
-  if (!hasPermission("usuarios.read")) {
-    return <Navigate to="/app" replace />;
-  }
 
   const handleSearch = () => {
     setAppliedFilters(filterInputs);

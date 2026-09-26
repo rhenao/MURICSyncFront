@@ -116,6 +116,9 @@ export default function DialogParamForm({
       const error = interpretarErrorParam(err, resultado.valores[keyField]);
       if (error.tipo === "noExiste") {
         onNoExiste();
+      } else if (error.tipo === "duplicado") {
+        // El error se muestra en el campo código, que es el que el usuario debe cambiar.
+        setErroresCampo({ [keyField]: error.mensajes[0] });
       } else {
         setErrores(error.mensajes);
       }

@@ -1,4 +1,4 @@
-import ListGeneral, { type ColumnConfig } from "../shared/ListGeneral";
+import ListaGeneralConsulta, { type ColumnConfig } from "../shared/ListaGeneralConsulta";
 
 const columns: ColumnConfig[] = [
   { accessorKey: "Codigo", header: "Código", size: 120 },
@@ -8,7 +8,7 @@ const columns: ColumnConfig[] = [
 
 export default function ListUniversalidades() {
   return (
-    <ListGeneral
+    <ListaGeneralConsulta
       endpoint="/Universalidades"
       title="Universalidades"
       columns={columns}

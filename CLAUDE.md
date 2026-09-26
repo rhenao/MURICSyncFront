@@ -32,7 +32,7 @@ Code is organized under `src/features/<feature>/`:
 
 - **`auth`** — `AuthProvider` (React context), `RequireAuth` guard, `useAuth` hook. Auth state lives in `localStorage` (token, user, tokenExpiry) and is managed by `AuthService`.
 - **`security`** — Login, password change/reset, user management (list/register/update). Calls the Security API.
-- **`param`** — ~30 read-only catalog/reference-data tables (parameter lists for the credit portfolio domain). All use the shared `ListGeneral` component.
+- **`param`** — ~30 catalog/reference-data tables (parameter lists for the credit portfolio domain). The SFC catalogs are read-only and use the shared `ListaGeneralConsulta` component. `Universalidades` (company-owned) is the only table meant to get create/edit (see `docs/prompts/plan-crud-universalidades.md`).
 - **`upload`** — File upload flow for loading portfolio data: select → load → validate → process → reverse.
 - **`home`** — Landing page shown after login.
 
@@ -49,11 +49,11 @@ Both clients attach the JWT Bearer token automatically via request interceptors 
 
 ### Param feature pattern
 
-Every parameter list follows the same pattern — just configure and delegate to `ListGeneral`:
+Every parameter list follows the same pattern — just configure and delegate to `ListaGeneralConsulta`:
 
 ```tsx
 // src/features/param/components/ListFoo.tsx
-import ListGeneral, { type ColumnConfig } from "../shared/ListGeneral";
+import ListaGeneralConsulta, { type ColumnConfig } from "../shared/ListaGeneralConsulta";
 
 const columns: ColumnConfig[] = [
   { accessorKey: "Codigo", header: "Código", size: 120 },
@@ -61,11 +61,11 @@ const columns: ColumnConfig[] = [
 ];
 
 export default function ListFoo() {
-  return <ListGeneral endpoint="/Foo" title="Foo" columns={columns} />;
+  return <ListaGeneralConsulta endpoint="/Foo" title="Foo" columns={columns} />;
 }
 ```
 
-`ListGeneral` calls `useEntidades(endpoint)` (GET via OData client, handles both plain arrays and OData `{ value: [] }` responses) and renders a `MaterialReactTable`. If the logged-in user has the `ADMIN` role, an "Editar" column is injected automatically.
+`ListaGeneralConsulta` calls `useEntidades(endpoint)` (GET via OData client, handles both plain arrays and OData `{ value: [] }` responses) and renders a `MaterialReactTable`. It has no row actions. `ColumnConfig`/`toMrtColumns`/`getRowKey` live in `shared/columnConfig.ts`, the shared table styling in `shared/tableStyles.ts`, and the title + record-count header in `shared/ListaHeader.tsx`, so a future CRUD list can reuse them. Row ids come from `Codigo` (the API returns PascalCase properties).
 
 After adding a new param list component, register its route in `src/AppRoutes.tsx`.
 
@@ -78,6 +78,6 @@ After adding a new param list component, register its route in `src/AppRoutes.ts
 1. `AuthProvider` wraps the app and exposes `{ isAuthenticated, user, login, logout }` via context.
 2. `RequireAuth` wraps all protected routes — redirects to `/login` if not authenticated. `RequireRole` (role-based) and `RequirePermission` (permission-code-based) wrap individual sensitive routes in `AppRoutes.tsx` — see the route table there for which routes use which.
 3. `AuthService` is a singleton class that handles the actual API call and `localStorage` persistence.
-4. `user.roles` (array of strings) and `user.permissions` (array of permission codes, decoded from the JWT at login) control role/permission-gated UI (menu items in `Menu.tsx`, the edit column in `ListGeneral`, and the route guards above).
+4. `user.roles` (array of strings) and `user.permissions` (array of permission codes, decoded from the JWT at login) control role/permission-gated UI (menu items in `Menu.tsx` and the route guards above).
 
 **Security note:** the token, user object, and `tokenExpiry` all live in `localStorage` as plain, editable JSON. Session-expiry checks in `AuthService.isAuthenticated()` and the two Axios client interceptors compare against `tokenExpiry` from `localStorage` — this is a UX convenience only, not a real security boundary, since a user can edit it (or `user.roles`/`user.permissions`) from DevTools. The backend must independently validate the JWT's signature, expiry, and claims on every request; never treat client-side auth/role/permission checks as authoritative. If the backend ever exposes `httpOnly` + `SameSite` cookies for session storage, revisit moving off `localStorage`.

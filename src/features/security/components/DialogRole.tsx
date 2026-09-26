@@ -12,7 +12,7 @@ import {
   CircularProgress,
   Alert,
 } from "@mui/material";
-import { AxiosError } from "axios";
+import { extractBackendErrors } from "../../../utils/extractBackendErrors";
 import type { RoleWithPermissions, CreateRoleDto, UpdateRoleDto } from "../models/Role.model";
 import RoleService from "../services/RoleService";
 
@@ -21,16 +21,6 @@ interface DialogRoleProps {
   role?: RoleWithPermissions | null;
   onClose: () => void;
   onSaved: () => void;
-}
-
-function extractBackendErrors(err: unknown): string[] {
-  if (err instanceof AxiosError && err.response?.data) {
-    const data = err.response.data as { errors?: string[]; message?: string };
-    if (data.errors?.length) return data.errors;
-    if (data.message) return [data.message];
-  }
-  if (err instanceof Error) return [err.message];
-  return ["Error al guardar el rol. Intente nuevamente."];
 }
 
 export default function DialogRole({ open, role, onClose, onSaved }: DialogRoleProps) {
@@ -84,7 +74,7 @@ export default function DialogRole({ open, role, onClose, onSaved }: DialogRoleP
       }
       onSaved();
     } catch (err) {
-      setErrors(extractBackendErrors(err));
+      setErrors(extractBackendErrors(err, "Error al guardar el rol. Intente nuevamente."));
     } finally {
       setSaving(false);
     }

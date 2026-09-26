@@ -11,7 +11,7 @@ import {
   Alert,
   Autocomplete,
 } from "@mui/material";
-import { AxiosError } from "axios";
+import { extractBackendErrors } from "../../../utils/extractBackendErrors";
 import type { Permission, CreatePermissionDto, UpdatePermissionDto } from "../models/Permission.model";
 import PermissionService from "../services/PermissionService";
 
@@ -22,16 +22,6 @@ interface DialogPermissionProps {
   permission?: Permission | null;
   onClose: () => void;
   onSaved: () => void;
-}
-
-function extractBackendErrors(err: unknown): string[] {
-  if (err instanceof AxiosError && err.response?.data) {
-    const data = err.response.data as { errors?: string[]; message?: string };
-    if (data.errors?.length) return data.errors;
-    if (data.message) return [data.message];
-  }
-  if (err instanceof Error) return [err.message];
-  return ["Error al guardar el permiso. Intente nuevamente."];
 }
 
 export default function DialogPermission({
@@ -98,7 +88,7 @@ export default function DialogPermission({
       }
       onSaved();
     } catch (err) {
-      setErrors(extractBackendErrors(err));
+      setErrors(extractBackendErrors(err, "Error al guardar el permiso. Intente nuevamente."));
     } finally {
       setSaving(false);
     }

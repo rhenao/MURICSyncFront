@@ -73,26 +73,59 @@ export const CAMPOS_POR_INSUMO: Record<InsumoMURIC, CampoInsumo[]> = {
   ],
 };
 
-export interface PlantillaCargaCampo {
-  id?: number;
-  plantillaId: number;
+// ─── Contrato de api/plantillas (propiedades en camelCase) ─────────────────────
+
+/** Campo del mapeo tal como lo devuelve el detalle (GET /plantillas/{id}, POST, PUT, PATCH). */
+export interface PlantillaCampo {
+  id: number;
   nombreColumnaArchivo: string | null;
   campoStaging: string;
   valorPorDefecto: string | null;
   ordenColumna: number;
 }
 
-export interface PlantillaCarga {
+/** Fila del listado (GET /plantillas): no trae los campos, solo cuántos son. */
+export interface PlantillaResumen {
   id: number;
   nombre: string;
-  descripcion: string;
+  descripcion: string | null;
   insumo: InsumoMURIC;
   tipoEntidad: number;
   codigoEntidad: number;
   usuarioCreador: string;
   esActiva: boolean;
   fechaCreacion: string;
-  campos: PlantillaCargaCampo[];
+  numeroCampos: number;
 }
 
-export type PlantillaInput = Omit<PlantillaCarga, 'id' | 'fechaCreacion'>;
+/** Plantilla completa, con el mapeo de campos. */
+export interface PlantillaDetalle extends Omit<PlantillaResumen, 'numeroCampos'> {
+  campos: PlantillaCampo[];
+}
+
+/** Campo del mapeo que se envía al crear o actualizar. */
+export interface PlantillaCampoRequest {
+  nombreColumnaArchivo: string | null;
+  campoStaging: string;
+  valorPorDefecto: string | null;
+  ordenColumna: number;
+}
+
+export interface ActualizarPlantillaRequest {
+  nombre: string;
+  descripcion: string | null;
+  campos: PlantillaCampoRequest[];
+}
+
+export interface CrearPlantillaRequest extends ActualizarPlantillaRequest {
+  insumo: InsumoMURIC;
+  tipoEntidad: number;
+  codigoEntidad: number;
+}
+
+export interface FiltroPlantillas {
+  insumo?: InsumoMURIC;
+  tipoEntidad?: number;
+  codigoEntidad?: number;
+  soloActivas?: boolean;
+}

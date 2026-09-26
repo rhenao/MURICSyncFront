@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -37,11 +38,11 @@ import {
   INSUMO_LABELS,
   type CampoInsumo,
   type InsumoMURIC,
-  type PlantillaCarga,
-  type PlantillaCargaCampo,
-  type PlantillaInput,
+  type PlantillaCampo,
+  type PlantillaCampoRequest,
+  type PlantillaDetalle,
 } from '../models/Plantilla.model';
-import useAuth from '../../auth/hooks/useAuth';
+import { extractBackendErrors } from '../../../utils/extractBackendErrors';
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
@@ -55,7 +56,7 @@ interface FilaMapeo {
 
 // ─── Helpers de conversión ────────────────────────────────────────────────────
 
-function campoToFila(c: PlantillaCargaCampo): FilaMapeo {
+function campoToFila(c: PlantillaCampo): FilaMapeo {
   return {
     _tempId: String(c.id ?? Math.random()),
     nombreColumnaArchivo: c.nombreColumnaArchivo ?? '',
@@ -65,9 +66,8 @@ function campoToFila(c: PlantillaCargaCampo): FilaMapeo {
   };
 }
 
-function filasToCampos(filas: FilaMapeo[], plantillaId: number): PlantillaCargaCampo[] {
+function filasToCampos(filas: FilaMapeo[]): PlantillaCampoRequest[] {
   return filas.map((f, i) => ({
-    plantillaId,
     nombreColumnaArchivo: f.nombreColumnaArchivo.trim() || null,
     campoStaging: f.campoStaging,
     valorPorDefecto: f.valorPorDefecto.trim() || null,
@@ -164,15 +164,22 @@ function sugerirCampoStaging(encabezado: string, campos: CampoInsumo[]): string 
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
+/** Datos que produce el formulario; ListPlantillas decide si crea o actualiza. */
+export interface PlantillaFormData {
+  nombre: string;
+  descripcion: string | null;
+  insumo: InsumoMURIC;
+  campos: PlantillaCampoRequest[];
+}
+
 interface Props {
   open: boolean;
-  plantilla: PlantillaCarga | null;
+  plantilla: PlantillaDetalle | null; // detalle completo (GET /plantillas/{id}) al editar
   onClose: () => void;
-  onSave: (input: PlantillaInput) => void;
+  onSave: (data: PlantillaFormData) => Promise<void>; // si falla, el error se muestra en el diálogo
 }
 
 export default function FormPlantilla({ open, plantilla, onClose, onSave }: Props) {
-  const { user } = useAuth();
   const esEdicion = plantilla !== null;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -181,6 +188,8 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
   const [insumo, setInsumo] = useState<InsumoMURIC | ''>('');
   const [filas, setFilas] = useState<FilaMapeo[]>([]);
   const [error, setError] = useState('');
+  const [erroresGuardar, setErroresGuardar] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
   const [errorImport, setErrorImport] = useState('');
 
   // Encabezados pendientes de confirmar antes de reemplazar filas existentes
@@ -190,9 +199,10 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
     if (!open) return;
     if (plantilla) {
       setNombre(plantilla.nombre);
-      setDescripcion(plantilla.descripcion);
+      setDescripcion(plantilla.descripcion ?? '');
       setInsumo(plantilla.insumo);
-      setFilas(plantilla.campos?.map(campoToFila));
+      const campos = plantilla.campos ?? [];
+      setFilas(campos.length > 0 ? campos.map(campoToFila) : [nuevaFila()]);
     } else {
       setNombre('');
       setDescripcion('');
@@ -200,6 +210,7 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
       setFilas([nuevaFila()]);
     }
     setError('');
+    setErroresGuardar([]);
     setErrorImport('');
     setPendingHeaders(null);
   }, [open, plantilla]);
@@ -295,8 +306,10 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
 
   // ── Guardar ──────────────────────────────────────────────────────────────────
 
-  const handleGuardar = () => {
+  const handleGuardar = async () => {
+    if (saving) return;
     setError('');
+    setErroresGuardar([]);
     if (!nombre.trim()) { setError('El nombre es obligatorio.'); return; }
     if (!insumo) { setError('Selecciona el insumo MURIC.'); return; }
 
@@ -320,16 +333,23 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
       return;
     }
 
-    onSave({
-      nombre: nombre.trim(),
-      descripcion: descripcion.trim(),
-      insumo,
-      tipoEntidad: plantilla?.tipoEntidad ?? 1,
-      codigoEntidad: plantilla?.codigoEntidad ?? 1,
-      usuarioCreador: plantilla?.usuarioCreador ?? (user?.email ?? ''),
-      esActiva: plantilla?.esActiva ?? true,
-      campos: filasToCampos(filasValidas, plantilla?.id ?? 0),
-    });
+    setSaving(true);
+    try {
+      await onSave({
+        nombre: nombre.trim(),
+        descripcion: descripcion.trim() || null,
+        insumo,
+        campos: filasToCampos(filasValidas),
+      });
+    } catch (err) {
+      setErroresGuardar(extractBackendErrors(err, 'No se pudo guardar la plantilla. Intente nuevamente.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!saving) onClose();
   };
 
   // ── Datos derivados para la UI ───────────────────────────────────────────────
@@ -344,7 +364,7 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" scroll="paper">
+      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="lg" scroll="paper">
         <DialogTitle sx={{ pb: 1 }}>
           {esEdicion ? `Editar plantilla: ${plantilla.nombre}` : 'Nueva plantilla de carga'}
         </DialogTitle>
@@ -352,6 +372,11 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
         <DialogContent dividers>
           <Stack spacing={2.5}>
             {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
+            {erroresGuardar.length > 0 && (
+              <Alert severity="error" onClose={() => setErroresGuardar([])}>
+                {erroresGuardar.map((msg, i) => <div key={i}>{msg}</div>)}
+              </Alert>
+            )}
             {errorImport && (
               <Alert severity="warning" onClose={() => setErrorImport('')}>{errorImport}</Alert>
             )}
@@ -604,9 +629,14 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
         </DialogContent>
 
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={onClose} color="inherit">Cancelar</Button>
-          <Button onClick={handleGuardar} variant="contained">
-            {esEdicion ? 'Guardar cambios' : 'Crear plantilla'}
+          <Button onClick={handleClose} color="inherit" disabled={saving}>Cancelar</Button>
+          <Button
+            onClick={handleGuardar}
+            variant="contained"
+            disabled={saving}
+            startIcon={saving ? <CircularProgress size={20} /> : null}
+          >
+            {saving ? 'Guardando...' : esEdicion ? 'Guardar cambios' : 'Crear plantilla'}
           </Button>
         </DialogActions>
       </Dialog>

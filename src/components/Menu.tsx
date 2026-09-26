@@ -65,6 +65,7 @@ export function Menu() {
 
   const canAdmin = hasRole("ADMIN", "OPERADOR", "CONSULTA");
   const canCargue = hasRole("ADMIN", "OPERADOR");
+  const canVerPlantillas = hasPermission("cargas.read");
   const canEnvio = hasRole("ADMIN", "OPERADOR");
   const canConsultas = hasRole("ADMIN", "OPERADOR", "CONSULTA");
   const canAdminUsuarios = hasRole("ADMIN", "SEGURIDAD");
@@ -337,7 +338,7 @@ export function Menu() {
         )}
 
         {/* Primer nivel: Proceso de cargue de archivos */}
-        {canCargue && (
+        {(canCargue || canVerPlantillas) && (
         <>
         <ListItemButton onClick={() => setOpenCargue(!openCargue)}>
           <ListItemIcon>
@@ -348,6 +349,7 @@ export function Menu() {
         </ListItemButton>
         <Collapse in={openCargue} timeout="auto" unmountOnExit>
           <List component="div" disablePadding dense>
+            {canVerPlantillas && (
             <ListItemButton
               component={NavLink}
               to="/app/plantillas-carga"
@@ -356,6 +358,8 @@ export function Menu() {
               <ListItemIcon><FileCopy fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Plantillas de carga" />
             </ListItemButton>
+            )}
+            {canCargue && (
             <ListItemButton
               component={NavLink}
               to="/app/carga-archivos"
@@ -364,6 +368,7 @@ export function Menu() {
               <ListItemIcon><CloudUpload fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Cargue de archivos" />
             </ListItemButton>
+            )}
             <ListItemButton
               component={NavLink}
               to="/config-mapeo-carga"

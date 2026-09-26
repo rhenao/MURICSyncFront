@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { AxiosError } from 'axios';
 import { MaterialReactTable, type MRT_ColumnDef } from 'material-react-table';
 import {
   Box,
   Button,
   Card,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -25,12 +27,14 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import {
   INSUMO_LABELS_CORTO,
   type InsumoMURIC,
-  type PlantillaCarga,
-  type PlantillaInput,
+  type PlantillaDetalle,
+  type PlantillaResumen,
 } from '../models/Plantilla.model';
 import { usePlantillas } from '../hooks/usePlantillas';
-import FormPlantilla from './FormPlantilla';
+import PlantillaService from '../services/PlantillaService';
+import FormPlantilla, { type PlantillaFormData } from './FormPlantilla';
 import useAuth from '../../auth/hooks/useAuth';
+import { extractBackendErrors } from '../../../utils/extractBackendErrors';
 
 const INSUMOS: { value: InsumoMURIC | 'todos'; label: string }[] = [
   { value: 'todos', label: 'Todos' },
@@ -39,20 +43,35 @@ const INSUMOS: { value: InsumoMURIC | 'todos'; label: string }[] = [
   { value: '001-003', label: '001-003 Movimientos' },
 ];
 
-export default function ListPlantillas() {
-  const { user } = useAuth();
-  const canEdit = user?.roles?.some(r => ['ADMIN', 'OPERADOR'].includes(r)) ?? false;
+// Mientras las plantillas estén asociadas a una entidad (ver plan-plantillas-carga.md, Fase B).
+const TIPO_ENTIDAD_PLANTILLA = 1;
+const CODIGO_ENTIDAD_PLANTILLA = 1;
 
-  const { plantillas, cargando, error, createPlantilla, updatePlantilla, toggleActiva, deletePlantilla } =
-    usePlantillas();
+interface ConfirmDeleteState {
+  plantilla: PlantillaResumen;
+  eliminando: boolean;
+  errores: string[];
+  enUso: boolean; // 409: referenciada por un lote; se ofrece desactivarla
+}
+
+const statusDe = (err: unknown) => (err instanceof AxiosError ? err.response?.status : undefined);
+
+export default function ListPlantillas() {
+  const { hasPermission } = useAuth();
+  // Sin permiso las acciones no se renderizan: un 403 del API cierra la sesión.
+  // Es solo UX; la autorización real la hace el backend con [RequirePermission("cargas.write")].
+  const canEdit = hasPermission('cargas.write');
+
+  const { plantillas, cargando, error, recargar } = usePlantillas();
 
   const [filtroInsumo, setFiltroInsumo] = useState<InsumoMURIC | 'todos'>('todos');
   const [formOpen, setFormOpen] = useState(false);
-  const [editando, setEditando] = useState<PlantillaCarga | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<PlantillaCarga | null>(null);
+  const [editando, setEditando] = useState<PlantillaDetalle | null>(null);
+  const [ocupadoId, setOcupadoId] = useState<number | null>(null); // fila con una acción en curso
+  const [confirmDelete, setConfirmDelete] = useState<ConfirmDeleteState | null>(null);
   const [snackbar, setSnackbar] = useState<{
     mensaje: string;
-    tipo: 'success' | 'info' | 'error';
+    tipo: 'success' | 'info' | 'warning' | 'error';
   } | null>(null);
 
   const datosFiltrados = plantillas.filter(
@@ -64,52 +83,109 @@ export default function ListPlantillas() {
     setFormOpen(true);
   };
 
-  const handleEditar = (p: PlantillaCarga) => {
-    setEditando(p);
-    setFormOpen(true);
-  };
-
-  const handleGuardar = async (input: PlantillaInput) => {
+  // El listado no trae los campos del mapeo: se pide el detalle antes de abrir el formulario.
+  const handleEditar = async (p: PlantillaResumen) => {
+    setOcupadoId(p.id);
     try {
-      if (editando) {
-        await updatePlantilla(editando.id, input);
-        setSnackbar({ mensaje: 'Plantilla actualizada.', tipo: 'success' });
+      setEditando(await PlantillaService.obtener(p.id));
+      setFormOpen(true);
+    } catch (err) {
+      if (statusDe(err) === 404) {
+        setSnackbar({ mensaje: 'La plantilla ya no existe. Se actualizó la lista.', tipo: 'warning' });
+        recargar();
       } else {
-        await createPlantilla(input);
-        setSnackbar({ mensaje: 'Plantilla creada.', tipo: 'success' });
+        setSnackbar({
+          mensaje: extractBackendErrors(err, 'No se pudo abrir la plantilla.').join(' '),
+          tipo: 'error',
+        });
       }
-      setFormOpen(false);
-      setEditando(null);
-    } catch {
-      setSnackbar({ mensaje: 'Error al guardar la plantilla.', tipo: 'error' });
+    } finally {
+      setOcupadoId(null);
     }
   };
 
-  const handleToggleActiva = async (p: PlantillaCarga) => {
+  const cerrarFormulario = () => {
+    setFormOpen(false);
+    setEditando(null);
+  };
+
+  // Si falla, el error sube a FormPlantilla, que lo muestra sin cerrar el diálogo.
+  const handleGuardar = async (data: PlantillaFormData) => {
+    if (editando) {
+      await PlantillaService.actualizar(editando.id, {
+        nombre: data.nombre,
+        descripcion: data.descripcion,
+        campos: data.campos,
+      });
+      setSnackbar({ mensaje: 'Plantilla actualizada.', tipo: 'success' });
+    } else {
+      await PlantillaService.crear({
+        ...data,
+        tipoEntidad: TIPO_ENTIDAD_PLANTILLA,
+        codigoEntidad: CODIGO_ENTIDAD_PLANTILLA,
+      });
+      setSnackbar({ mensaje: 'Plantilla creada.', tipo: 'success' });
+    }
+    cerrarFormulario();
+    recargar();
+  };
+
+  const cambiarActiva = async (p: PlantillaResumen): Promise<boolean> => {
+    setOcupadoId(p.id);
     try {
-      await toggleActiva(p.id);
+      await PlantillaService.cambiarActiva(p.id, !p.esActiva);
       setSnackbar({
         mensaje: p.esActiva ? 'Plantilla desactivada.' : 'Plantilla activada.',
         tipo: 'info',
       });
-    } catch {
-      setSnackbar({ mensaje: 'Error al cambiar el estado de la plantilla.', tipo: 'error' });
+      recargar();
+      return true;
+    } catch (err) {
+      setSnackbar({
+        mensaje: extractBackendErrors(err, 'No se pudo cambiar el estado de la plantilla.').join(' '),
+        tipo: 'error',
+      });
+      if (statusDe(err) === 404) recargar();
+      return false;
+    } finally {
+      setOcupadoId(null);
     }
   };
 
   const handleConfirmarEliminar = async () => {
-    if (!confirmDelete) return;
+    if (!confirmDelete || confirmDelete.eliminando) return;
+    const { plantilla } = confirmDelete;
+    setConfirmDelete({ ...confirmDelete, eliminando: true, errores: [] });
     try {
-      await deletePlantilla(confirmDelete.id);
+      await PlantillaService.eliminar(plantilla.id);
+      setConfirmDelete(null);
       setSnackbar({ mensaje: 'Plantilla eliminada.', tipo: 'info' });
-      setConfirmDelete(null);
-    } catch {
-      setSnackbar({ mensaje: 'No se puede eliminar: la plantilla está referenciada en un lote.', tipo: 'error' });
-      setConfirmDelete(null);
+      recargar();
+    } catch (err) {
+      const status = statusDe(err);
+      if (status === 404) {
+        setConfirmDelete(null);
+        setSnackbar({ mensaje: 'La plantilla ya no existe. Se actualizó la lista.', tipo: 'warning' });
+        recargar();
+        return;
+      }
+      setConfirmDelete({
+        plantilla,
+        eliminando: false,
+        errores: extractBackendErrors(err, 'No se pudo eliminar la plantilla.'),
+        enUso: status === 409,
+      });
     }
   };
 
-  const columns: MRT_ColumnDef<PlantillaCarga>[] = [
+  // Alternativa ofrecida cuando la plantilla está referenciada por un lote (409).
+  const handleDesactivarEnVezDeEliminar = async () => {
+    if (!confirmDelete) return;
+    const ok = await cambiarActiva(confirmDelete.plantilla);
+    if (ok) setConfirmDelete(null);
+  };
+
+  const columns: MRT_ColumnDef<PlantillaResumen>[] = [
     {
       accessorKey: 'nombre',
       header: 'Nombre',
@@ -143,13 +219,9 @@ export default function ListPlantillas() {
       ),
     },
     {
-      accessorKey: 'campos',
+      accessorKey: 'numeroCampos',
       header: 'Campos mapeados',
       size: 140,
-      enableSorting: false,
-      Cell: ({ row }) => (
-        <Typography variant="body2">{row.original.campos?.length ?? 0}</Typography>
-      ),
     },
     {
       accessorKey: 'usuarioCreador',
@@ -181,41 +253,75 @@ export default function ListPlantillas() {
             header: 'Acciones',
             size: 130,
             enableSorting: false,
-            Cell: ({ row }: { row: { original: PlantillaCarga } }) => (
+            Cell: ({ row }: { row: { original: PlantillaResumen } }) => (
               <Stack direction="row" spacing={0.5}>
                 <Tooltip title="Editar">
-                  <IconButton size="small" onClick={() => handleEditar(row.original)}>
-                    <EditIcon fontSize="small" />
-                  </IconButton>
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleEditar(row.original)}
+                      disabled={ocupadoId !== null}
+                    >
+                      {ocupadoId === row.original.id ? (
+                        <CircularProgress size={16} />
+                      ) : (
+                        <EditIcon fontSize="small" />
+                      )}
+                    </IconButton>
+                  </span>
                 </Tooltip>
                 <Tooltip title={row.original.esActiva ? 'Desactivar' : 'Activar'}>
-                  <IconButton size="small" onClick={() => handleToggleActiva(row.original)}>
-                    {row.original.esActiva ? (
-                      <ToggleOnIcon fontSize="small" color="success" />
-                    ) : (
-                      <ToggleOffIcon fontSize="small" color="disabled" />
-                    )}
-                  </IconButton>
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => cambiarActiva(row.original)}
+                      disabled={ocupadoId !== null}
+                    >
+                      {row.original.esActiva ? (
+                        <ToggleOnIcon fontSize="small" color="success" />
+                      ) : (
+                        <ToggleOffIcon fontSize="small" color="disabled" />
+                      )}
+                    </IconButton>
+                  </span>
                 </Tooltip>
                 <Tooltip title="Eliminar">
-                  <IconButton
-                    size="small"
-                    onClick={() => setConfirmDelete(row.original)}
-                    color="error"
-                  >
-                    <DeleteOutlineIcon fontSize="small" />
-                  </IconButton>
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() =>
+                        setConfirmDelete({
+                          plantilla: row.original,
+                          eliminando: false,
+                          errores: [],
+                          enUso: false,
+                        })
+                      }
+                      disabled={ocupadoId !== null}
+                      color="error"
+                    >
+                      <DeleteOutlineIcon fontSize="small" />
+                    </IconButton>
+                  </span>
                 </Tooltip>
               </Stack>
             ),
-          } as MRT_ColumnDef<PlantillaCarga>,
+          } as MRT_ColumnDef<PlantillaResumen>,
         ]
       : []),
   ];
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ m: 2 }}>
+      <Alert
+        severity="error"
+        sx={{ m: 2 }}
+        action={
+          <Button color="inherit" size="small" onClick={recargar}>
+            Reintentar
+          </Button>
+        }
+      >
         {error}
       </Alert>
     );
@@ -332,23 +438,52 @@ export default function ListPlantillas() {
       <FormPlantilla
         open={formOpen}
         plantilla={editando}
-        onClose={() => { setFormOpen(false); setEditando(null); }}
+        onClose={cerrarFormulario}
         onSave={handleGuardar}
       />
 
-      <Dialog open={!!confirmDelete} onClose={() => setConfirmDelete(null)} maxWidth="xs">
+      <Dialog
+        open={!!confirmDelete}
+        onClose={() => !confirmDelete?.eliminando && setConfirmDelete(null)}
+        maxWidth="xs"
+      >
         <DialogTitle>Confirmar eliminación</DialogTitle>
         <DialogContent>
+          {confirmDelete && confirmDelete.errores.length > 0 && (
+            <Alert severity={confirmDelete.enUso ? 'warning' : 'error'} sx={{ mb: 2 }}>
+              {confirmDelete.errores.map((msg, i) => (
+                <div key={i}>{msg}</div>
+              ))}
+            </Alert>
+          )}
           <DialogContentText>
-            ¿Eliminar la plantilla <strong>{confirmDelete?.nombre}</strong>? Esta acción no se
+            ¿Eliminar la plantilla <strong>{confirmDelete?.plantilla.nombre}</strong>? Esta acción no se
             puede deshacer.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDelete(null)}>Cancelar</Button>
-          <Button color="error" variant="contained" onClick={handleConfirmarEliminar}>
-            Eliminar
+          <Button onClick={() => setConfirmDelete(null)} disabled={confirmDelete?.eliminando}>
+            Cancelar
           </Button>
+          {confirmDelete?.enUso && confirmDelete.plantilla.esActiva ? (
+            <Button
+              variant="contained"
+              onClick={handleDesactivarEnVezDeEliminar}
+              disabled={ocupadoId !== null}
+            >
+              Desactivar
+            </Button>
+          ) : (
+            <Button
+              color="error"
+              variant="contained"
+              onClick={handleConfirmarEliminar}
+              disabled={confirmDelete?.eliminando || confirmDelete?.enUso}
+              startIcon={confirmDelete?.eliminando ? <CircularProgress size={20} /> : null}
+            >
+              {confirmDelete?.eliminando ? 'Eliminando...' : 'Eliminar'}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 

@@ -36,7 +36,8 @@ import SendIcon              from '@mui/icons-material/Send';
 import RefreshIcon           from '@mui/icons-material/Refresh';
 import axiosSecurityAPIClient from '../../../api/axiosSecurityAPIClient';
 import { useEntidades }      from '../../../hooks/useEntidades';
-import type { PlantillaCarga } from '../models/Plantilla.model';
+import type { PlantillaResumen } from '../models/Plantilla.model';
+import PlantillaService from '../services/PlantillaService';
 
 // ─── API response types ───────────────────────────────────────────────────────
 
@@ -153,7 +154,7 @@ export default function CargaArchivos() {
   };
 
   // Plantilla selection (optional, one per insumo)
-  const [plantillasMap, setPlantillasMap] = useState<Record<InsumoEnum, PlantillaCarga[]>>({
+  const [plantillasMap, setPlantillasMap] = useState<Record<InsumoEnum, PlantillaResumen[]>>({
     Credito: [], Atributo: [], Movimiento: [],
   });
   const [plantillaIds, setPlantillaIds] = useState<Record<InsumoEnum, number | ''>>(
@@ -187,14 +188,12 @@ export default function CargaArchivos() {
     try {
       const results = await Promise.all(
         INSUMOS.map(ins =>
-          axiosSecurityAPIClient
-            .get<PlantillaCarga[]>('/plantillas', {
-              params: { insumo: ins.codigo, codigoEntidad: codEntidad, tipoEntidad: tipEntidad, soloActivas: true },
-            })
-            .then(r => ({ insumo: ins.enum as InsumoEnum, data: r.data }))
+          PlantillaService
+            .listar({ insumo: ins.codigo, codigoEntidad: codEntidad, tipoEntidad: tipEntidad, soloActivas: true })
+            .then(data => ({ insumo: ins.enum as InsumoEnum, data }))
         )
       );
-      const map: Record<InsumoEnum, PlantillaCarga[]> = { Credito: [], Atributo: [], Movimiento: [] };
+      const map: Record<InsumoEnum, PlantillaResumen[]> = { Credito: [], Atributo: [], Movimiento: [] };
       for (const { insumo, data } of results) map[insumo] = data;
       setPlantillasMap(map);
     } catch {
@@ -616,7 +615,7 @@ export default function CargaArchivos() {
                           <MenuItem key={p.id} value={p.id}>
                             {p.nombre}
                             <Typography component="span" variant="caption" color="text.secondary" ml={0.5}>
-                              ({p.campos?.length} campos)
+                              ({p.numeroCampos} campos)
                             </Typography>
                           </MenuItem>
                         ))}

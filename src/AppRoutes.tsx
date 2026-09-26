@@ -194,7 +194,14 @@ export default function AppRoutes() {
         />
         <Route path="/app/cambiar-contrasena" element={<PasswordChange />} />
         <Route path="/app/carga-archivos" element={<CargaArchivos />} />
-        <Route path="/app/plantillas-carga" element={<ListPlantillas />} />
+        <Route
+          path="/app/plantillas-carga"
+          element={
+            <RequirePermission requiredPermissions={["cargas.read"]}>
+              <ListPlantillas />
+            </RequirePermission>
+          }
+        />
         <Route path="/app/envio-muric" element={<EnviaMURIC />} />
         <Route path="/app/consultas-muric" element={<ConsultasMURIC />} />
         <Route

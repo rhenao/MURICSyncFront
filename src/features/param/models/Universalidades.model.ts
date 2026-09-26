@@ -1,5 +1,6 @@
+// Propiedades en PascalCase, tal como las devuelve y recibe el API OData.
 export default interface Universalidades {
-  codigo: number; 
-  descripcion: string; // MaxLength(100)
-  activo: string; // A-ctivo, I-Inactivo
+  Codigo: number;
+  Descripcion: string; // MaxLength(100)
+  Estado: "A" | "I"; // A-ctivo, I-Inactivo
 }

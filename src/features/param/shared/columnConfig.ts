@@ -19,6 +19,7 @@ export interface ColumnConfig {
   maxLength?: number;
   options?: SelectOption[]; // para "select"; la tabla muestra el label
   hideInForm?: boolean;
+  defaultValue?: string | number; // valor inicial al crear
 }
 
 export type Row = Record<string, unknown>;

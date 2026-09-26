@@ -67,6 +67,8 @@ export default function ListFoo() {
 
 `ListaGeneralConsulta` calls `useEntidades(endpoint)` (GET via OData client, handles both plain arrays and OData `{ value: [] }` responses) and renders a `MaterialReactTable`. It has no row actions. `ColumnConfig`/`toMrtColumns`/`getRowKey` live in `shared/columnConfig.ts`, the shared table styling in `shared/tableStyles.ts`, and the title + record-count header in `shared/ListaHeader.tsx`, so a future CRUD list can reuse them. Row ids come from `Codigo` (the API returns PascalCase properties).
 
+**Write-enabled lists (`ListaGeneralCrud`).** Only for company-owned tables — today just `Universalidades`; SFC catalogs stay on `ListaGeneralConsulta`. Same `endpoint`/`title`/`columns` props plus `keyField` (default `"Codigo"`), `keyType` (`"number"` | `"string"`), `keyMaxLength`, `allowEdit` and `writePermission` (default `"params.write"`). `ColumnConfig` accepts form metadata (`fieldType`, `required`, `maxLength`, `options`, `hideInForm`, `defaultValue`); `buildParamSchema` turns it into a `yup` schema, `DialogParamForm` renders the form, and `ParamCrudService` does `POST`/`PUT {endpoint}(key)` (full entity)/`DELETE`. Actions are **not rendered** without the write permission, because the OData client's interceptor logs the user out on a 403. Plan and pending phases: `docs/prompts/plan-crud-universalidades.md`.
+
 After adding a new param list component, register its route in `src/AppRoutes.tsx`.
 
 ### Upload flow (`src/features/upload/`)

@@ -19,6 +19,8 @@ export const cardSx: SxProps<Theme> = {
   borderRadius: 3,
 };
 
+export const bodyCellSx = { fontSize: "0.9rem" };
+
 // Opciones comunes de MaterialReactTable para las listas de parámetros.
 export const baseTableOptions: Partial<MRT_TableOptions<Row>> = {
   enableColumnActions: false,
@@ -72,5 +74,5 @@ export const baseTableOptions: Partial<MRT_TableOptions<Row>> = {
       borderColor: "divider",
     },
   },
-  muiTableBodyCellProps: { sx: { fontSize: "0.9rem" } },
+  muiTableBodyCellProps: { sx: bodyCellSx },
 };

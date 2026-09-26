@@ -1,3 +1,5 @@
+import { createElement } from "react";
+import { Chip, type ChipProps } from "@mui/material";
 import type { MRT_ColumnDef } from "material-react-table";
 
 export type FieldType = "text" | "multiline" | "number" | "select";
@@ -5,6 +7,7 @@ export type FieldType = "text" | "multiline" | "number" | "select";
 export interface SelectOption {
   value: string | number;
   label: string;
+  color?: ChipProps["color"]; // con color, la tabla pinta el valor como Chip
 }
 
 export interface ColumnConfig {
@@ -33,7 +36,16 @@ export function toMrtColumns(columns: ColumnConfig[]): MRT_ColumnDef<Row>[] {
       ? {
           Cell: ({ cell }) => {
             const value = cell.getValue<string | number | null>();
-            return col.options!.find((o) => o.value === value)?.label ?? value ?? col.nullFallback;
+            const option = col.options!.find((o) => o.value === value);
+            if (option?.color) {
+              return createElement(Chip, {
+                label: option.label,
+                color: option.color,
+                size: "small",
+                variant: "outlined",
+              });
+            }
+            return option?.label ?? value ?? col.nullFallback;
           },
         }
       : col.nullFallback != null

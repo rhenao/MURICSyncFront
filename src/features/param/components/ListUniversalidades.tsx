@@ -1,8 +1,8 @@
-import ListaGeneralCrud, { type ColumnConfig } from "../shared/ListaGeneralCrud";
+import ListaGeneralCrud, { type ColumnConfig, type SelectOption } from "../shared/ListaGeneralCrud";
 
-const ESTADOS = [
-  { value: "A", label: "Activo" },
-  { value: "I", label: "Inactivo" },
+const ESTADOS: SelectOption[] = [
+  { value: "A", label: "Activo", color: "success" },
+  { value: "I", label: "Inactivo", color: "default" },
 ];
 
 const columns: ColumnConfig[] = [
@@ -24,6 +24,10 @@ export default function ListUniversalidades() {
       endpoint="/Universalidades"
       title="Universalidades"
       columns={columns}
+      // R1: no se borra físicamente (hay créditos que la mencionan por texto, sin FK);
+      // la baja es lógica con Estado = "I".
+      allowDelete={false}
+      filaInactiva={(row) => row["Estado"] === "I"}
     />
   );
 }

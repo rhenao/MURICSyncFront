@@ -48,8 +48,12 @@ export interface ErrorParam {
  * Los textos que se buscan son los que devuelven hoy los controladores OData
  * ("Llave primaria duplicada (X)", "... Fila no existe.").
  */
-export function interpretarErrorParam(err: unknown, key?: unknown): ErrorParam {
-  const mensajes = extractBackendErrors(err, "No se pudo guardar el registro. Intente nuevamente.");
+export function interpretarErrorParam(
+  err: unknown,
+  key?: unknown,
+  fallback = "No se pudo guardar el registro. Intente nuevamente."
+): ErrorParam {
+  const mensajes = extractBackendErrors(err, fallback);
   const status = err instanceof AxiosError ? err.response?.status : undefined;
   const texto = mensajes.join(" ").toLowerCase();
 

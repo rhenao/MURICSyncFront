@@ -2,17 +2,19 @@ import { useMemo, useState } from "react";
 import { MaterialReactTable } from "material-react-table";
 import { Alert, Box, Button, Card, IconButton, Snackbar, Tooltip } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { useEntidades } from "../../../hooks/useEntidades";
 import useAuth from "../../auth/hooks/useAuth";
 import { getRowKey, toMrtColumns, type ColumnConfig, type Row } from "./columnConfig";
-import { baseTableOptions, cardSx } from "./tableStyles";
+import { baseTableOptions, bodyCellSx, cardSx } from "./tableStyles";
 import ListaHeader from "./ListaHeader";
 import DialogParamForm, { type ModoFormulario } from "./DialogParamForm";
+import DialogConfirmDelete from "./DialogConfirmDelete";
 import type { KeyConfig } from "./buildParamSchema";
 import type { KeyType } from "../services/ParamCrudService";
 
-export type { ColumnConfig } from "./columnConfig";
+export type { ColumnConfig, SelectOption } from "./columnConfig";
 
 interface ListaGeneralCrudProps {
   endpoint: string;
@@ -23,6 +25,8 @@ interface ListaGeneralCrudProps {
   keyMaxLength?: number; // solo para claves de texto
   allowCreate?: boolean; // por defecto true
   allowEdit?: boolean; // por defecto true
+  allowDelete?: boolean; // por defecto true
+  filaInactiva?: (row: Row) => boolean; // las filas inactivas se muestran atenuadas
   writePermission?: string; // por defecto "params.write"
 }
 
@@ -47,6 +51,8 @@ export default function ListaGeneralCrud({
   keyMaxLength,
   allowCreate = true,
   allowEdit = true,
+  allowDelete = true,
+  filaInactiva,
   writePermission = "params.write",
 }: ListaGeneralCrudProps) {
   const { entidades, cargando, recargar } = useEntidades<Row>(endpoint);
@@ -57,6 +63,7 @@ export default function ListaGeneralCrud({
   const canWrite = hasPermission(writePermission);
   const canCreate = allowCreate && canWrite;
   const canEdit = allowEdit && canWrite;
+  const canDelete = allowDelete && canWrite;
 
   const keyConfig = useMemo<KeyConfig>(
     () => ({ keyField, keyType, keyMaxLength }),
@@ -69,6 +76,7 @@ export default function ListaGeneralCrud({
     modo: "editar",
     fila: null,
   });
+  const [borrando, setBorrando] = useState<Row | null>(null);
   const [aviso, setAviso] = useState<Aviso>({ open: false, severity: "success", message: "" });
 
   const cerrarDialogo = () => setDialogo((d) => ({ ...d, open: false }));
@@ -81,8 +89,15 @@ export default function ListaGeneralCrud({
     recargar();
   };
 
+  const handleDeleted = () => {
+    setBorrando(null);
+    avisar("success", "Registro eliminado.");
+    recargar();
+  };
+
   const handleNoExiste = () => {
     cerrarDialogo();
+    setBorrando(null);
     avisar("warning", "El registro ya no existe. Se actualizó la lista.");
     recargar();
   };
@@ -95,9 +110,17 @@ export default function ListaGeneralCrud({
         data={entidades ?? []}
         getRowId={(row) => getRowKey(row, keyField)}
         state={{ isLoading: cargando }}
-        enableRowActions={canEdit}
+        enableRowActions={canEdit || canDelete}
         positionActionsColumn="last"
         displayColumnDefOptions={{ "mrt-row-actions": { header: "Acciones", size: 90 } }}
+        muiTableBodyCellProps={({ row, column }) => ({
+          sx: {
+            ...bodyCellSx,
+            ...(column.id !== "mrt-row-actions" && filaInactiva?.(row.original)
+              ? { opacity: 0.55 }
+              : {}),
+          },
+        })}
         renderRowActions={({ row }) => (
           <Box sx={{ display: "flex", gap: 0.5 }}>
             {canEdit && (
@@ -109,6 +132,18 @@ export default function ListaGeneralCrud({
                   onClick={() => setDialogo({ open: true, modo: "editar", fila: row.original })}
                 >
                   <EditOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {canDelete && (
+              <Tooltip title="Eliminar">
+                <IconButton
+                  size="small"
+                  color="error"
+                  aria-label={`Eliminar ${getRowKey(row.original, keyField)}`}
+                  onClick={() => setBorrando(row.original)}
+                >
+                  <DeleteOutlineIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
             )}
@@ -147,6 +182,17 @@ export default function ListaGeneralCrud({
         onNoExiste={handleNoExiste}
       />
 
+      <DialogConfirmDelete
+        open={borrando != null}
+        endpoint={endpoint}
+        keyValue={borrando?.[keyField]}
+        keyType={keyType}
+        descripcion={descripcionDe(borrando, columns, keyField)}
+        onClose={() => setBorrando(null)}
+        onDeleted={handleDeleted}
+        onNoExiste={handleNoExiste}
+      />
+
       <Snackbar
         open={aviso.open}
         autoHideDuration={4000}
@@ -163,4 +209,13 @@ export default function ListaGeneralCrud({
       </Snackbar>
     </Card>
   );
+}
+
+// Primer campo de texto distinto de la clave (normalmente Descripcion), para identificar el registro.
+function descripcionDe(fila: Row | null, columns: ColumnConfig[], keyField: string) {
+  if (!fila) return undefined;
+  const col = columns.find(
+    (c) => c.accessorKey !== keyField && typeof fila[c.accessorKey] === "string"
+  );
+  return col ? String(fila[col.accessorKey]) : undefined;
 }

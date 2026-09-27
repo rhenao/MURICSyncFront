@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Chip,
@@ -32,7 +33,12 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
 import * as XLSX from 'xlsx';
+import { useEntidades } from '../../../hooks/useEntidades';
+import { usePermission } from '../../auth/hooks/usePermission';
+import type CatalogoAtributos from '../../param/models/CatalogoAtributos.model';
+import { ATRIBUTOS_POLIZA } from '../../param/models/CatalogoAtributos.model';
 import {
   CAMPOS_POR_INSUMO,
   INSUMO_LABELS,
@@ -52,7 +58,15 @@ interface FilaMapeo {
   campoStaging: string;
   valorPorDefecto: string;
   _sugerida: boolean;
+  // Columna de atributo (001-002 por columnas): campoStaging es siempre 'valor_atributo'.
+  esAtributo: boolean;
+  claveAtributo: number | null;
+  ordinalPoliza: string;
 }
+
+const CLAVE_ATRIBUTO = 'clave_atributo';
+const VALOR_ATRIBUTO = 'valor_atributo';
+const CAMPOS_EAV = [CLAVE_ATRIBUTO, VALOR_ATRIBUTO];
 
 // ─── Helpers de conversión ────────────────────────────────────────────────────
 
@@ -63,16 +77,24 @@ function campoToFila(c: PlantillaCampo): FilaMapeo {
     campoStaging: c.campoStaging,
     valorPorDefecto: c.valorPorDefecto ?? '',
     _sugerida: false,
+    esAtributo: c.claveAtributo != null,
+    claveAtributo: c.claveAtributo ?? null,
+    ordinalPoliza: c.ordinalPoliza != null ? String(c.ordinalPoliza) : '',
   };
 }
 
 function filasToCampos(filas: FilaMapeo[]): PlantillaCampoRequest[] {
-  return filas.map((f, i) => ({
-    nombreColumnaArchivo: f.nombreColumnaArchivo.trim() || null,
-    campoStaging: f.campoStaging,
-    valorPorDefecto: f.valorPorDefecto.trim() || null,
-    ordenColumna: i + 1,
-  }));
+  return filas.map((f, i) => {
+    const esPoliza = f.esAtributo && f.claveAtributo != null && ATRIBUTOS_POLIZA.includes(f.claveAtributo);
+    return {
+      nombreColumnaArchivo: f.nombreColumnaArchivo.trim() || null,
+      campoStaging: f.campoStaging,
+      valorPorDefecto: f.valorPorDefecto.trim() || null,
+      ordenColumna: i + 1,
+      claveAtributo: f.esAtributo ? f.claveAtributo : null,
+      ordinalPoliza: esPoliza && f.ordinalPoliza.trim() ? Number(f.ordinalPoliza) : null,
+    };
+  });
 }
 
 function nuevaFila(): FilaMapeo {
@@ -82,7 +104,14 @@ function nuevaFila(): FilaMapeo {
     campoStaging: '',
     valorPorDefecto: '',
     _sugerida: false,
+    esAtributo: false,
+    claveAtributo: null,
+    ordinalPoliza: '',
   };
+}
+
+function nuevaFilaAtributo(claveAtributo: number | null = null): FilaMapeo {
+  return { ...nuevaFila(), campoStaging: VALOR_ATRIBUTO, esAtributo: true, claveAtributo };
 }
 
 // ─── Parseo de encabezados desde archivo ─────────────────────────────────────
@@ -145,39 +174,204 @@ async function parseHeadersFromFile(file: File): Promise<string[]> {
 // ─── Algoritmo de sugerencia de mapeo ─────────────────────────────────────────
 
 function normalizar(s: string): string {
-  return s.toLowerCase().trim().replace(/[\s\-.]+/g, '_');
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // sin tildes: "Originación" = "originacion"
+    .toLowerCase()
+    .trim()
+    .replace(/[\s\-./]+/g, '_')
+    .replace(/^_+|_+$/g, '');
 }
 
-function sugerirCampoStaging(encabezado: string, campos: CampoInsumo[]): string {
+interface Coincidencia<K> {
+  clave: K;
+  score: number;
+}
+
+/** Mejor candidato para un encabezado; null si ninguno supera el umbral o hay empate. */
+function mejorCoincidencia<K>(
+  encabezado: string,
+  candidatos: { clave: K; texto: string }[]
+): Coincidencia<K> | null {
   const norm = normalizar(encabezado);
+  if (!norm || candidatos.length === 0) return null;
 
-  const scores = campos.map(c => {
-    const normCampo = c.campo; // ya está en snake_case
+  const scores = candidatos.map(c => {
+    const normCampo = normalizar(c.texto);
+    if (norm === normCampo) return { clave: c.clave, score: 100 };
+
     let score = 0;
-
-    if (norm === normCampo) return { campo: c.campo, score: 100 };
-
     // Contención completa
-    if (normCampo.includes(norm) || norm.includes(normCampo)) {
-      score = Math.max(score, 50);
-    }
+    if (normCampo.includes(norm) || norm.includes(normCampo)) score = 50;
 
     // Palabras en común (ignorar palabras de 1-2 chars: "de", "la", etc.)
     const palabrasEnc = norm.split('_').filter(p => p.length > 2);
     const palabrasCampo = normCampo.split('_').filter(p => p.length > 2);
     const comunes = palabrasEnc.filter(p => palabrasCampo.includes(p));
-    score = Math.max(score, comunes.length * 20);
-
-    return { campo: c.campo, score };
+    return { clave: c.clave, score: Math.max(score, comunes.length * 20) };
   });
 
   const maxScore = Math.max(...scores.map(s => s.score));
-  if (maxScore < 20) return ''; // ningún campo supera el umbral mínimo
+  if (maxScore < 20) return null; // ningún campo supera el umbral mínimo
 
   const mejores = scores.filter(s => s.score === maxScore);
-  if (mejores.length > 1) return ''; // empate = ambigüedad, el usuario elige
+  if (mejores.length > 1) return null; // empate = ambigüedad, el usuario elige
 
-  return mejores[0].campo;
+  return mejores[0];
+}
+
+/** Fila sugerida para un encabezado: campo de staging o, en 001-002, un atributo del catálogo. */
+function sugerirFila(encabezado: string, campos: CampoInsumo[], atributos: CatalogoAtributos[]): FilaMapeo {
+  const base: FilaMapeo = { ...nuevaFila(), nombreColumnaArchivo: encabezado };
+  const campo = mejorCoincidencia(encabezado, campos.map(c => ({ clave: c.campo, texto: c.campo })));
+  const atributo = mejorCoincidencia(
+    encabezado,
+    atributos.map(a => ({ clave: a.Codigo, texto: a.Nombre }))
+  );
+
+  if (atributo && (!campo || atributo.score > campo.score)) {
+    return { ...nuevaFilaAtributo(atributo.clave), nombreColumnaArchivo: encabezado, _sugerida: true };
+  }
+  if (campo) return { ...base, campoStaging: campo.clave, _sugerida: true };
+  return base;
+}
+
+// ─── Valor por defecto desde un catálogo ──────────────────────────────────────
+
+interface ValorCatalogo {
+  Codigo: number | string;
+  Descripcion: string;
+}
+
+/** Select con los valores del catálogo SFC del atributo (p. ej. /SexoBiologico). */
+function ValorCatalogoSelect({
+  endpoint,
+  value,
+  onChange,
+}: {
+  endpoint: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const { entidades, cargando } = useEntidades<ValorCatalogo>(`/${endpoint}`);
+  const opciones = entidades ?? [];
+  const existe = value === '' || opciones.some(o => String(o.Codigo) === value);
+
+  return (
+    <FormControl size="small" fullWidth>
+      <Select
+        displayEmpty
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        renderValue={v => {
+          if (!v) return <em style={{ color: '#aaa' }}>{cargando ? 'Cargando...' : 'Opcional: si la celda viene vacía'}</em>;
+          const o = opciones.find(x => String(x.Codigo) === v);
+          return o ? `${o.Codigo} · ${o.Descripcion}` : v;
+        }}
+      >
+        <MenuItem value=""><em>Sin valor por defecto</em></MenuItem>
+        {!existe && <MenuItem value={value}>{value}</MenuItem>}
+        {opciones.map(o => (
+          <MenuItem key={String(o.Codigo)} value={String(o.Codigo)}>
+            {o.Codigo} · {o.Descripcion}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+}
+
+// ─── Selector de atributo (columna de atributo) ──────────────────────────────
+
+function SelectorAtributo({
+  fila,
+  catalogo,
+  atributoPorClave,
+  clavesYaUsadas,
+  cargando,
+  onAtributoChange,
+  onOrdinalChange,
+}: {
+  fila: FilaMapeo;
+  catalogo: CatalogoAtributos[];
+  atributoPorClave: Map<number, CatalogoAtributos>;
+  clavesYaUsadas: Set<number | null>;
+  cargando: boolean;
+  onAtributoChange: (clave: number | null) => void;
+  onOrdinalChange: (v: string) => void;
+}) {
+  const clave = fila.claveAtributo;
+  // Sin catálogo (p. ej. sin params.read) el atributo guardado se muestra solo con su código.
+  const actual: CatalogoAtributos | null =
+    clave == null
+      ? null
+      : atributoPorClave.get(clave) ?? {
+          Codigo: clave,
+          Nombre: `Atributo ${clave}`,
+          Descripcion: null,
+          Naturaleza: 'Sólo si es aplicable',
+          Repetible: false,
+          CatalogoValor: null,
+        };
+  const opciones = catalogo.filter(a => a.Codigo === clave || a.Repetible || !clavesYaUsadas.has(a.Codigo));
+  if (actual && !opciones.some(a => a.Codigo === actual.Codigo)) opciones.unshift(actual);
+  const esPoliza = clave != null && ATRIBUTOS_POLIZA.includes(clave);
+
+  return (
+    <Stack direction="row" spacing={1} alignItems="center">
+      <Autocomplete
+        size="small"
+        fullWidth
+        options={opciones}
+        value={actual}
+        loading={cargando}
+        onChange={(_, v) => onAtributoChange(v?.Codigo ?? null)}
+        getOptionLabel={a => `${a.Codigo} · ${a.Nombre}`}
+        isOptionEqualToValue={(a, b) => a.Codigo === b.Codigo}
+        renderOption={(props, a) => {
+          const { key, ...rest } = props;
+          return (
+            <Tooltip key={key} title={a.Descripcion ?? ''} placement="right" enterDelay={600}>
+              <Box component="li" {...rest} sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <span>{a.Codigo} · {a.Nombre}</span>
+                {a.Naturaleza === 'Obligatorio' && (
+                  <Chip label="Obligatorio" size="small" color="warning" variant="outlined" />
+                )}
+                {a.Repetible && <Chip label="Repetible" size="small" variant="outlined" />}
+              </Box>
+            </Tooltip>
+          );
+        }}
+        renderInput={params => (
+          <TextField
+            {...params}
+            placeholder="Busca el atributo"
+            error={clave == null}
+            InputProps={{
+              ...params.InputProps,
+              startAdornment: fila._sugerida ? (
+                <AutoFixHighIcon color="info" sx={{ fontSize: '1rem', mr: 0.5 }} titleAccess="Sugerida" />
+              ) : (
+                params.InputProps.startAdornment
+              ),
+            }}
+          />
+        )}
+      />
+      {esPoliza && (
+        <Tooltip title='Número de la póliza: el valor se reporta como "P{n}_valor". Déjalo vacío si el archivo ya trae el prefijo.'>
+          <TextField
+            size="small"
+            label="Póliza n.º"
+            value={fila.ordinalPoliza}
+            onChange={e => onOrdinalChange(e.target.value.replace(/\D/g, '').slice(0, 2))}
+            sx={{ width: 110, flexShrink: 0 }}
+            inputProps={{ inputMode: 'numeric' }}
+          />
+        </Tooltip>
+      )}
+    </Stack>
+  );
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -233,8 +427,29 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
     setPendingHeaders(null);
   }, [open, plantilla]);
 
-  const camposDisponibles: CampoInsumo[] = insumo ? CAMPOS_POR_INSUMO[insumo] : [];
-  const camposYaUsados = new Set(filas.map(f => f.campoStaging).filter(Boolean));
+  // Catálogo de atributos (solo 001-002). Sin params.read no se consulta: un 403 del cliente OData cierra la sesión.
+  const { hasPermission } = usePermission();
+  const puedeLeerCatalogo = hasPermission('params.read');
+  const esAtributos = insumo === '001-002';
+  const { entidades: catalogoRaw, cargando: cargandoCatalogo } = useEntidades<CatalogoAtributos>(
+    '/CatalogoAtributos',
+    { enabled: open && esAtributos && puedeLeerCatalogo }
+  );
+  const catalogo = useMemo(
+    () => [...(catalogoRaw ?? [])].sort((a, b) => a.Codigo - b.Codigo),
+    [catalogoRaw]
+  );
+  const atributoPorClave = useMemo(() => new Map(catalogo.map(a => [a.Codigo, a])), [catalogo]);
+
+  // Una plantilla 001-002 es EAV (clave_atributo/valor_atributo) o por columnas de atributo, no las dos.
+  const hayColumnasAtributo = filas.some(f => f.esAtributo);
+  const hayCamposEav = filas.some(f => !f.esAtributo && CAMPOS_EAV.includes(f.campoStaging));
+
+  const camposDisponibles: CampoInsumo[] = insumo
+    ? CAMPOS_POR_INSUMO[insumo].filter(c => !(hayColumnasAtributo && CAMPOS_EAV.includes(c.campo)))
+    : [];
+  const camposYaUsados = new Set(filas.filter(f => !f.esAtributo).map(f => f.campoStaging).filter(Boolean));
+  const clavesYaUsadas = new Set(filas.filter(f => f.esAtributo && f.claveAtributo != null).map(f => f.claveAtributo));
 
   // ── Handlers del formulario ──────────────────────────────────────────────────
 
@@ -251,13 +466,29 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
     setFilas(prev =>
       prev.map(f =>
         f._tempId === tempId
-          ? { ...f, [key]: value, _sugerida: key === 'campoStaging' ? false : f._sugerida }
+          ? {
+              ...f,
+              [key]: value,
+              _sugerida: key === 'campoStaging' || key === 'claveAtributo' ? false : f._sugerida,
+            }
           : f
       )
     );
   };
 
   const handleAgregarFila = () => setFilas(prev => [...prev, nuevaFila()]);
+
+  const handleAgregarAtributo = () => setFilas(prev => [...prev, nuevaFilaAtributo()]);
+
+  // El valor por defecto depende del catálogo del atributo: al cambiar el atributo se limpia.
+  const handleAtributoChange = (tempId: string, clave: number | null) =>
+    setFilas(prev =>
+      prev.map(f =>
+        f._tempId === tempId
+          ? { ...f, claveAtributo: clave, valorPorDefecto: '', ordinalPoliza: '', _sugerida: false }
+          : f
+      )
+    );
 
   const handleEliminarFila = (tempId: string) =>
     setFilas(prev => prev.filter(f => f._tempId !== tempId));
@@ -270,17 +501,16 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
 
   const aplicarImportacion = (headers: string[]) => {
     const campos = insumo ? CAMPOS_POR_INSUMO[insumo] : [];
-    const nuevasFilas: FilaMapeo[] = headers.map(h => {
-      const sugerencia = sugerirCampoStaging(h, campos);
-      return {
-        _tempId: String(Math.random()),
-        nombreColumnaArchivo: h,
-        campoStaging: sugerencia,
-        valorPorDefecto: '',
-        _sugerida: sugerencia !== '',
-      };
-    });
-    setFilas(nuevasFilas);
+    const nuevasFilas = headers.map(h => sugerirFila(h, campos, esAtributos ? catalogo : []));
+    // Si el archivo trae clave_atributo/valor_atributo es EAV: no se sugieren columnas de atributo.
+    const esEav = nuevasFilas.some(f => !f.esAtributo && CAMPOS_EAV.includes(f.campoStaging));
+    setFilas(
+      esEav
+        ? nuevasFilas.map(f =>
+            f.esAtributo ? { ...nuevaFila(), nombreColumnaArchivo: f.nombreColumnaArchivo } : f
+          )
+        : nuevasFilas
+    );
     setPendingHeaders(null);
     setErrorImport('');
   };
@@ -340,6 +570,11 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
       setError('Agrega al menos un campo mapeado.');
       return;
     }
+    const errorAtributos = validarAtributos(filasValidas);
+    if (errorAtributos) {
+      setError(errorAtributos);
+      return;
+    }
     const sinCobertura = filasValidas.filter(
       f => !f.nombreColumnaArchivo.trim() && !f.valorPorDefecto.trim()
     );
@@ -352,6 +587,7 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
       return;
     }
     const camposDuplicados = filasValidas
+      .filter(f => !f.esAtributo)
       .map(f => f.campoStaging)
       .filter((c, i, arr) => arr.indexOf(c) !== i);
     if (camposDuplicados.length > 0) {
@@ -374,6 +610,40 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
     }
   };
 
+  // Reglas de las columnas de atributo; el backend repite estas validaciones.
+  const validarAtributos = (filasValidas: FilaMapeo[]): string | null => {
+    const atributos = filasValidas.filter(f => f.esAtributo);
+    if (atributos.length === 0) return null;
+    if (hayCamposEav) {
+      return 'La plantilla mezcla columnas de atributo con "Clave Atributo"/"Valor Atributo". Usa una sola forma.';
+    }
+    if (atributos.some(f => f.claveAtributo == null)) return 'Elige el atributo de cada columna de atributo.';
+
+    for (const f of atributos) {
+      if (!f.ordinalPoliza.trim()) continue;
+      const n = Number(f.ordinalPoliza);
+      if (!Number.isInteger(n) || n < 1 || n > 99) {
+        return `Atributo ${f.claveAtributo}: el número de póliza debe ser un entero entre 1 y 99.`;
+      }
+    }
+
+    const porClave = new Map<number, FilaMapeo[]>();
+    for (const f of atributos) porClave.set(f.claveAtributo!, [...(porClave.get(f.claveAtributo!) ?? []), f]);
+    for (const [clave, grupo] of porClave) {
+      if (grupo.length < 2) continue;
+      const atributo = atributoPorClave.get(clave);
+      const nombreAtributo = atributo ? `${clave} (${atributo.Nombre})` : String(clave);
+      if (atributo && !atributo.Repetible) return `El atributo ${nombreAtributo} no es repetible y aparece ${grupo.length} veces.`;
+      if (ATRIBUTOS_POLIZA.includes(clave)) {
+        const ordinales = grupo.map(f => f.ordinalPoliza.trim());
+        if (new Set(ordinales).size < ordinales.length) {
+          return `El atributo ${nombreAtributo} se repite: indica un número de póliza distinto en cada columna.`;
+        }
+      }
+    }
+    return null;
+  };
+
   const handleClose = () => {
     if (!saving) onClose();
   };
@@ -383,6 +653,11 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
   const obligatoriosFaltantes = camposDisponibles
     .filter(c => c.obligatorio)
     .filter(c => !new Set(filas.map(f => f.campoStaging)).has(c.campo));
+
+  // Advertencia, no bloquea: varios dependen del tipo de persona (1 solo jurídica; 2 y 3 solo natural).
+  const atributosObligatoriosFaltantes = hayColumnasAtributo
+    ? catalogo.filter(a => a.Naturaleza === 'Obligatorio' && !clavesYaUsadas.has(a.Codigo))
+    : [];
 
   const sugeridosCount = filas.filter(f => f._sugerida).length;
 
@@ -516,6 +791,30 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
                 >
                   Agregar fila
                 </Button>
+
+                {esAtributos && (
+                  <Tooltip
+                    title={
+                      !puedeLeerCatalogo
+                        ? 'Requiere permiso de consulta de tablas básicas (params.read).'
+                        : hayCamposEav
+                          ? 'La plantilla ya mapea "Clave Atributo"/"Valor Atributo" (formato EAV). Quítalos para usar columnas de atributo.'
+                          : 'Una columna del archivo por atributo: cada celda con valor genera una fila de atributo.'
+                    }
+                  >
+                    <span>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<PlaylistAddIcon />}
+                        onClick={handleAgregarAtributo}
+                        disabled={!puedeLeerCatalogo || hayCamposEav || cargandoCatalogo}
+                      >
+                        Agregar atributo
+                      </Button>
+                    </span>
+                  </Tooltip>
+                )}
               </Stack>
             </Stack>
 
@@ -532,6 +831,16 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
                 {obligatoriosFaltantes.map(c => (
                   <Chip key={c.campo} label={c.etiqueta} size="small" sx={{ mr: 0.5 }} />
                 ))}
+              </Alert>
+            )}
+
+            {atributosObligatoriosFaltantes.length > 0 && (
+              <Alert severity="info" sx={{ py: 0.5 }}>
+                Atributos obligatorios para la SFC sin columna:{' '}
+                {atributosObligatoriosFaltantes.map(a => (
+                  <Chip key={a.Codigo} label={`${a.Codigo} · ${a.Nombre}`} size="small" sx={{ mr: 0.5, mb: 0.25 }} />
+                ))}
+                Algunos dependen del tipo de persona (1 solo para jurídica; 2 y 3 solo para natural).
               </Alert>
             )}
 
@@ -569,6 +878,10 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
                         const opcionesDestino = camposDisponibles.filter(
                           c => c.campo === fila.campoStaging || !camposYaUsados.has(c.campo)
                         );
+                        const catalogoValor =
+                          fila.claveAtributo != null
+                            ? atributoPorClave.get(fila.claveAtributo)?.CatalogoValor ?? null
+                            : null;
                         return (
                           <TableRow
                             key={fila._tempId}
@@ -588,68 +901,88 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
                             </TableCell>
 
                             <TableCell>
-                              <FormControl size="small" fullWidth>
-                                <Select
-                                  displayEmpty
-                                  value={fila.campoStaging}
-                                  onChange={e =>
-                                    handleFilaChange(fila._tempId, 'campoStaging', e.target.value)
-                                  }
-                                  renderValue={v =>
-                                    v ? (
-                                      <Stack direction="row" spacing={0.75} alignItems="center">
-                                        <span>
-                                          {camposDisponibles.find(c => c.campo === v)?.etiqueta ?? v}
-                                        </span>
-                                        {fila._sugerida && (
-                                          <Chip
-                                            icon={<AutoFixHighIcon sx={{ fontSize: '0.75rem !important' }} />}
-                                            label="Sugerida"
-                                            size="small"
-                                            color="info"
-                                            variant="outlined"
-                                            sx={{ height: 18, fontSize: '0.68rem' }}
-                                          />
-                                        )}
-                                      </Stack>
-                                    ) : (
-                                      <em style={{ color: '#aaa' }}>Selecciona campo</em>
-                                    )
-                                  }
-                                >
-                                  {opcionesDestino.map(c => (
-                                    <MenuItem key={c.campo} value={c.campo}>
-                                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                        {c.etiqueta}
-                                        {c.obligatorio && (
-                                          <Chip label="Obligatorio" size="small" color="warning" variant="outlined" />
-                                        )}
-                                      </Box>
-                                    </MenuItem>
-                                  ))}
-                                </Select>
-                              </FormControl>
+                              {fila.esAtributo ? (
+                                <SelectorAtributo
+                                  fila={fila}
+                                  catalogo={catalogo}
+                                  atributoPorClave={atributoPorClave}
+                                  clavesYaUsadas={clavesYaUsadas}
+                                  cargando={cargandoCatalogo}
+                                  onAtributoChange={clave => handleAtributoChange(fila._tempId, clave)}
+                                  onOrdinalChange={v => handleFilaChange(fila._tempId, 'ordinalPoliza', v)}
+                                />
+                              ) : (
+                                <FormControl size="small" fullWidth>
+                                  <Select
+                                    displayEmpty
+                                    value={fila.campoStaging}
+                                    onChange={e =>
+                                      handleFilaChange(fila._tempId, 'campoStaging', e.target.value)
+                                    }
+                                    renderValue={v =>
+                                      v ? (
+                                        <Stack direction="row" spacing={0.75} alignItems="center">
+                                          <span>
+                                            {camposDisponibles.find(c => c.campo === v)?.etiqueta ?? v}
+                                          </span>
+                                          {fila._sugerida && (
+                                            <Chip
+                                              icon={<AutoFixHighIcon sx={{ fontSize: '0.75rem !important' }} />}
+                                              label="Sugerida"
+                                              size="small"
+                                              color="info"
+                                              variant="outlined"
+                                              sx={{ height: 18, fontSize: '0.68rem' }}
+                                            />
+                                          )}
+                                        </Stack>
+                                      ) : (
+                                        <em style={{ color: '#aaa' }}>Selecciona campo</em>
+                                      )
+                                    }
+                                  >
+                                    {opcionesDestino.map(c => (
+                                      <MenuItem key={c.campo} value={c.campo}>
+                                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                          {c.etiqueta}
+                                          {c.obligatorio && (
+                                            <Chip label="Obligatorio" size="small" color="warning" variant="outlined" />
+                                          )}
+                                        </Box>
+                                      </MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                              )}
                             </TableCell>
 
                             <TableCell>
-                              <TextField
-                                size="small"
-                                fullWidth
-                                value={fila.valorPorDefecto}
-                                onChange={e =>
-                                  handleFilaChange(fila._tempId, 'valorPorDefecto', e.target.value)
-                                }
-                                placeholder={
-                                  !fila.nombreColumnaArchivo.trim()
-                                    ? 'Requerido si no hay columna'
-                                    : 'Opcional: si la celda viene vacía'
-                                }
-                                error={
-                                  !fila.nombreColumnaArchivo.trim() &&
-                                  !fila.valorPorDefecto.trim() &&
-                                  !!fila.campoStaging
-                                }
-                              />
+                              {fila.esAtributo && catalogoValor ? (
+                                <ValorCatalogoSelect
+                                  endpoint={catalogoValor}
+                                  value={fila.valorPorDefecto}
+                                  onChange={v => handleFilaChange(fila._tempId, 'valorPorDefecto', v)}
+                                />
+                              ) : (
+                                <TextField
+                                  size="small"
+                                  fullWidth
+                                  value={fila.valorPorDefecto}
+                                  onChange={e =>
+                                    handleFilaChange(fila._tempId, 'valorPorDefecto', e.target.value)
+                                  }
+                                  placeholder={
+                                    !fila.nombreColumnaArchivo.trim()
+                                      ? 'Requerido si no hay columna'
+                                      : 'Opcional: si la celda viene vacía'
+                                  }
+                                  error={
+                                    !fila.nombreColumnaArchivo.trim() &&
+                                    !fila.valorPorDefecto.trim() &&
+                                    !!fila.campoStaging
+                                  }
+                                />
+                              )}
                             </TableCell>
 
                             <TableCell>
@@ -670,6 +1003,8 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
 
                 <Typography variant="caption" color="text.secondary">
                   Deja vacía la "Columna en el archivo" si el campo siempre usa el valor por defecto (no viene en el archivo). Si hay columna, el valor por defecto se usa cuando la celda viene vacía o la columna no existe en el archivo. El campo destino solo puede aparecer una vez. Los mapeos marcados como "Sugerida" son propuestas automáticas — revísalos antes de guardar.
+                  {esAtributos &&
+                    ' En columnas de atributo, cada celda con valor genera una fila de atributo y las celdas vacías sin valor por defecto se omiten. En pólizas (29 a 32), el número de póliza antepone "P{n}_" al valor.'}
                 </Typography>
               </>
             )}

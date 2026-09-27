@@ -7,15 +7,25 @@ export interface ODataResponse<T> {
   count?: number;
 }
 
-export function useEntidades<T>(endpoint: string) {
+interface OpcionesEntidades {
+  // false = no consulta (p. ej. sin el permiso: un 403 del cliente OData cierra la sesión).
+  enabled?: boolean;
+}
+
+export function useEntidades<T>(endpoint: string, { enabled = true }: OpcionesEntidades = {}) {
   const [entidades, setEntidades] = useState<T[] | null>(null);
-  const [cargando, setCargando] = useState(true);
+  const [cargando, setCargando] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
   // Descarta respuestas de peticiones anteriores (cambio de endpoint o recargas seguidas).
   const ultimaPeticion = useRef(0);
 
   const fetchEntidades = useCallback(async () => {
     const peticion = ++ultimaPeticion.current;
+    if (!enabled) {
+      setEntidades(null);
+      setCargando(false);
+      return;
+    }
     try {
       setCargando(true);
       const response = await axiosOdataAPIClient.get<ODataResponse<T> | T[]>(endpoint);
@@ -69,7 +79,7 @@ export function useEntidades<T>(endpoint: string) {
     } finally {
       if (peticion === ultimaPeticion.current) setCargando(false);
     }
-  }, [endpoint]);
+  }, [endpoint, enabled]);
 
   useEffect(() => {
     fetchEntidades();

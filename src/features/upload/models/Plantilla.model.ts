@@ -82,6 +82,8 @@ export interface PlantillaCampo {
   campoStaging: string;
   valorPorDefecto: string | null;
   ordenColumna: number;
+  claveAtributo: number | null; // 001-002 por columnas: atributo (1–40) que trae la columna
+  ordinalPoliza: number | null; // atributos 29 a 32: n de la póliza (el valor se reporta como P{n}_valor)
 }
 
 /** Fila del listado (GET /plantillas): no trae los campos, solo cuántos son. */
@@ -107,6 +109,8 @@ export interface PlantillaCampoRequest {
   campoStaging: string;
   valorPorDefecto: string | null;
   ordenColumna: number;
+  claveAtributo: number | null;
+  ordinalPoliza: number | null;
 }
 
 export interface ActualizarPlantillaRequest {

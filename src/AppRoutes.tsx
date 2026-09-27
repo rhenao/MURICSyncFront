@@ -29,6 +29,7 @@ import ListTipoPoliza from "./features/param/components/ListTipoPoliza";
 import ListTipoRecuperacion from "./features/param/components/ListTipoRecuperacion";
 import ListCanalDesembolso from "./features/param/components/ListCanalDesembolso";
 import ListCanalOriginacion from "./features/param/components/ListCanalOriginacion";
+import ListCatalogoAtributos from "./features/param/components/ListCatalogoAtributos";
 import ListPeriodicidad from "./features/param/components/ListPeriodicidad";
 import ListSexoBiologico from "./features/param/components/ListSexoBiologico";
 import ListTipoTasa from "./features/param/components/ListTipoTasa";
@@ -157,6 +158,10 @@ export default function AppRoutes() {
         <Route
           path="/app/lista-canal-originacion"
           element={<ListCanalOriginacion />}
+        />
+        <Route
+          path="/app/lista-catalogo-atributos"
+          element={<ListCatalogoAtributos />}
         />
         <Route
           path="/app/lista-periodicidad"

@@ -151,6 +151,13 @@ export function Menu() {
             </ListItemButton>
             <ListItemButton
               component={NavLink}
+              to="/app/lista-catalogo-atributos"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Catálogo de Atributos" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
               to="/app/lista-clase-de-deudor"
               sx={{ pl: 15, py: 0.1 }}
             >

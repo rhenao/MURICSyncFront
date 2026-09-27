@@ -43,10 +43,6 @@ const INSUMOS: { value: InsumoMURIC | 'todos'; label: string }[] = [
   { value: '001-003', label: '001-003 Movimientos' },
 ];
 
-// Mientras las plantillas estén asociadas a una entidad (ver plan-plantillas-carga.md, Fase B).
-const TIPO_ENTIDAD_PLANTILLA = 1;
-const CODIGO_ENTIDAD_PLANTILLA = 1;
-
 interface ConfirmDeleteState {
   plantilla: PlantillaResumen;
   eliminando: boolean;
@@ -119,11 +115,7 @@ export default function ListPlantillas() {
       });
       setSnackbar({ mensaje: 'Plantilla actualizada.', tipo: 'success' });
     } else {
-      await PlantillaService.crear({
-        ...data,
-        tipoEntidad: TIPO_ENTIDAD_PLANTILLA,
-        codigoEntidad: CODIGO_ENTIDAD_PLANTILLA,
-      });
+      await PlantillaService.crear(data);
       setSnackbar({ mensaje: 'Plantilla creada.', tipo: 'success' });
     }
     cerrarFormulario();

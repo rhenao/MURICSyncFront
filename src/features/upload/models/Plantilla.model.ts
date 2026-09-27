@@ -90,8 +90,6 @@ export interface PlantillaResumen {
   nombre: string;
   descripcion: string | null;
   insumo: InsumoMURIC;
-  tipoEntidad: number;
-  codigoEntidad: number;
   usuarioCreador: string;
   esActiva: boolean;
   fechaCreacion: string;
@@ -119,13 +117,9 @@ export interface ActualizarPlantillaRequest {
 
 export interface CrearPlantillaRequest extends ActualizarPlantillaRequest {
   insumo: InsumoMURIC;
-  tipoEntidad: number;
-  codigoEntidad: number;
 }
 
 export interface FiltroPlantillas {
   insumo?: InsumoMURIC;
-  tipoEntidad?: number;
-  codigoEntidad?: number;
   soloActivas?: boolean;
 }

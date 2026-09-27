@@ -183,13 +183,14 @@ export default function CargaArchivos() {
 
   // ─── API helpers ─────────────────────────────────────────────────────────────
 
-  const fetchPlantillas = async (codEntidad: number, tipEntidad: number) => {
+  // Las plantillas son globales: no dependen de la universalidad del lote.
+  const fetchPlantillas = async () => {
     setCargandoPlantillas(true);
     try {
       const results = await Promise.all(
         INSUMOS.map(ins =>
           PlantillaService
-            .listar({ insumo: ins.codigo, codigoEntidad: codEntidad, tipoEntidad: tipEntidad, soloActivas: true })
+            .listar({ insumo: ins.codigo, soloActivas: true })
             .then(data => ({ insumo: ins.enum as InsumoEnum, data }))
         )
       );
@@ -250,7 +251,7 @@ export default function CargaArchivos() {
       });
       setLote(data);
       setSnackMsg(`Lote #${data.id} creado exitosamente.`);
-      fetchPlantillas(codEntidad, tipoEntidad);
+      fetchPlantillas();
     } catch (err) {
       setErrores([extractAxiosError(err)]);
     } finally {

@@ -32,8 +32,8 @@ Code is organized under `src/features/<feature>/`:
 
 - **`auth`** — `AuthProvider` (React context), `RequireAuth` guard, `useAuth` hook. Auth state lives in `localStorage` (token, user, tokenExpiry) and is managed by `AuthService`.
 - **`security`** — Login, password change/reset, user management (list/register/update). Calls the Security API.
-- **`param`** — ~30 catalog/reference-data tables (parameter lists for the credit portfolio domain). The SFC catalogs are read-only and use the shared `ListaGeneralConsulta` component. `Universalidades` (company-owned) is the only table meant to get create/edit (see `docs/prompts/plan-crud-universalidades.md`).
-- **`upload`** — File upload flow for loading portfolio data: select → load → validate → process → reverse.
+- **`param`** — ~30 catalog/reference-data tables (parameter lists for the credit portfolio domain). The SFC catalogs are read-only and use the shared `ListaGeneralConsulta` component. This includes `CatalogoAtributos`, the 40 attributes of insumo 001-002. `Universalidades` (company-owned) is the only table meant to get create/edit (see `docs/prompts/plan-crud-universalidades.md`).
+- **`upload`** — Portfolio load batches (`CargaArchivos`: create → upload → validate → promote → transmit) and load templates (`plantillas`).
 - **`home`** — Landing page shown after login.
 
 Shared layout components (`Layout`, `Menu`, `TopBar`, `Logo`, `UserAvatar`) live in `src/components/`.
@@ -73,7 +73,14 @@ After adding a new param list component, register its route in `src/AppRoutes.ts
 
 ### Upload flow (`src/features/upload/`)
 
-`CargaArchivos` handles the full lifecycle client-side. File parsing (CSV/TXT via `FileReader`, Excel via `xlsx`) happens in the browser. Backend integration points are all marked `// TODO` — the process/validate/reverse handlers currently simulate async delays.
+`CargaArchivos` drives the batch (`lote`) lifecycle against the Security API (`/cargas`): create → upload one file per insumo → validate → promote → AVRO download / transmit, or cancel. The **backend** parses the files (ADR 0004). Uploads use native `fetch` so the browser sets the multipart boundary.
+
+**Load templates (`plantillas`).** `ListPlantillas`/`FormPlantilla` and `PlantillaService` (`/plantillas`, permissions `cargas.read`/`cargas.write`) manage templates that map file columns to staging fields (`CAMPOS_POR_INSUMO` in `Plantilla.model.ts`). Plan: `docs/prompts/plan-plantillas-carga.md`.
+
+- Templates are **global**: no entity type or code.
+- A default value fills empty cells, and missing columns, of a mapped field.
+- **001-002 attributes** can come one column per attribute (`claveAtributo`, plus `ordinalPoliza` for 29–32). The form picks attributes from the read-only `CatalogoAtributos` param table. It only queries that table with `params.read`, via `useEntidades(endpoint, { enabled })`, because a 403 from the OData client logs the user out.
+- **001-999 "Todos"** is one combined file that fills the slots whose own fields the template maps (`insumosGeneradosTodos`). It is upload-only with a mandatory template (backend ADR 0009) and has no preview. `CargaArchivos` asks for confirmation before it replaces slots that already hold data.
 
 ### Auth flow
 

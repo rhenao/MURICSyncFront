@@ -87,6 +87,19 @@ function nuevaFila(): FilaMapeo {
 
 // ─── Parseo de encabezados desde archivo ─────────────────────────────────────
 
+/** Límite de `nombreColumnaArchivo` en el backend (`CampoPlantillaDto`). */
+const MAX_COLUMNA = 200;
+
+/** El backend solo separa por `;`, tabulador o `,` (`ParserBase.DetectarDelimitador`). */
+const SEPARADORES = [',', ';', '\t'];
+
+class SeparadorNoSoportadoError extends Error {}
+
+/** Nombre de archivo sin caracteres que los navegadores o el sistema operativo rechazan. */
+function nombreArchivoSeguro(s: string): string {
+  return s.trim().replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_').slice(0, 100) || 'sin_nombre';
+}
+
 async function parseHeadersFromFile(file: File): Promise<string[]> {
   const ext = file.name.split('.').pop()?.toLowerCase();
 
@@ -114,9 +127,14 @@ async function parseHeadersFromFile(file: File): Promise<string[]> {
     .find(l => l.trim());
   if (!firstLine) return [];
 
-  const separador = [',', ';', '\t', '|'].reduce((best, sep) =>
+  const separador = SEPARADORES.reduce((best, sep) =>
     firstLine.split(sep).length > firstLine.split(best).length ? sep : best
   );
+  if (firstLine.split(separador).length === 1 && firstLine.includes('|')) {
+    throw new SeparadorNoSoportadoError(
+      'El archivo parece estar separado por "|". El sistema solo acepta archivos separados por ";", "," o tabulador.'
+    );
+  }
 
   return firstLine
     .split(separador)
@@ -285,8 +303,12 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
       } else {
         aplicarImportacion(headers);
       }
-    } catch {
-      setErrorImport('No se pudo leer el archivo. Verifica que sea un Excel o CSV válido.');
+    } catch (err) {
+      setErrorImport(
+        err instanceof SeparadorNoSoportadoError
+          ? err.message
+          : 'No se pudo leer el archivo. Verifica que sea un Excel o CSV válido.'
+      );
     }
   };
 
@@ -301,7 +323,7 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
     const ws = XLSX.utils.aoa_to_sheet([encabezados]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `MURIC-${insumo}`);
-    XLSX.writeFile(wb, `plantilla_${insumo}_${nombre || 'sin_nombre'}.xlsx`);
+    XLSX.writeFile(wb, `plantilla_${insumo}_${nombreArchivoSeguro(nombre)}.xlsx`);
   };
 
   // ── Guardar ──────────────────────────────────────────────────────────────────
@@ -323,6 +345,10 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
     );
     if (sinCobertura.length > 0) {
       setError('Cada fila debe tener al menos una "Columna en el archivo" o un "Valor por defecto".');
+      return;
+    }
+    if (filasValidas.some(f => f.nombreColumnaArchivo.trim().length > MAX_COLUMNA)) {
+      setError(`La "Columna en el archivo" admite máximo ${MAX_COLUMNA} caracteres.`);
       return;
     }
     const camposDuplicados = filasValidas
@@ -359,6 +385,17 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
     .filter(c => !new Set(filas.map(f => f.campoStaging)).has(c.campo));
 
   const sugeridosCount = filas.filter(f => f._sugerida).length;
+
+  // Una columna del archivo puede alimentar varios campos; se avisa por si es un error.
+  const conteoColumnas = new Map<string, { nombre: string; veces: number }>();
+  for (const f of filas) {
+    const nombreCol = f.nombreColumnaArchivo.trim();
+    if (!nombreCol || !f.campoStaging) continue;
+    const clave = nombreCol.toLowerCase();
+    const previo = conteoColumnas.get(clave);
+    conteoColumnas.set(clave, { nombre: previo?.nombre ?? nombreCol, veces: (previo?.veces ?? 0) + 1 });
+  }
+  const columnasRepetidas = [...conteoColumnas.values()].filter(c => c.veces > 1).map(c => c.nombre);
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -498,6 +535,16 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
               </Alert>
             )}
 
+            {columnasRepetidas.length > 0 && (
+              <Alert severity="info" sx={{ py: 0.5 }}>
+                Estas columnas del archivo alimentan más de un campo:{' '}
+                {columnasRepetidas.map(c => (
+                  <Chip key={c} label={c} size="small" sx={{ mr: 0.5 }} />
+                ))}
+                Verifica que sea intencional.
+              </Alert>
+            )}
+
             {/* ── Tabla de mapeo ── */}
             {(insumo || filas.some(f => f.nombreColumnaArchivo)) && (
               <>
@@ -536,6 +583,7 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
                                   handleFilaChange(fila._tempId, 'nombreColumnaArchivo', e.target.value)
                                 }
                                 placeholder="ej. nro_credito"
+                                inputProps={{ maxLength: MAX_COLUMNA }}
                               />
                             </TableCell>
 
@@ -594,7 +642,7 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
                                 placeholder={
                                   !fila.nombreColumnaArchivo.trim()
                                     ? 'Requerido si no hay columna'
-                                    : 'Opcional'
+                                    : 'Opcional: si la celda viene vacía'
                                 }
                                 error={
                                   !fila.nombreColumnaArchivo.trim() &&
@@ -621,7 +669,7 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
                 </TableContainer>
 
                 <Typography variant="caption" color="text.secondary">
-                  Deja vacía la "Columna en el archivo" si el campo siempre usa el valor por defecto (no viene en el archivo). El campo destino solo puede aparecer una vez. Los mapeos marcados como "Sugerida" son propuestas automáticas — revísalos antes de guardar.
+                  Deja vacía la "Columna en el archivo" si el campo siempre usa el valor por defecto (no viene en el archivo). Si hay columna, el valor por defecto se usa cuando la celda viene vacía o la columna no existe en el archivo. El campo destino solo puede aparecer una vez. Los mapeos marcados como "Sugerida" son propuestas automáticas — revísalos antes de guardar.
                 </Typography>
               </>
             )}

@@ -1,24 +1,28 @@
-export type InsumoMURIC = '001-001' | '001-002' | '001-003';
+// '001-999' (Todos): un archivo combinado que llena los tres slots, solo con plantilla (ADR 0009 del backend).
+export type InsumoMURIC = '001-001' | '001-002' | '001-003' | '001-999';
 
 export interface CampoInsumo {
   campo: string;
   etiqueta: string;
   obligatorio: boolean;
+  insumo?: InsumoMURIC; // solo en 001-999: insumo al que pertenece (sin valor = identificador común)
 }
 
 export const INSUMO_LABELS: Record<InsumoMURIC, string> = {
   '001-001': 'MURIC-001-001 — Información general de créditos',
   '001-002': 'MURIC-001-002 — Atributos de créditos y deudores',
   '001-003': 'MURIC-001-003 — Movimientos de cartera',
+  '001-999': '001-999 — Todos (un archivo con campos de los tres insumos)',
 };
 
 export const INSUMO_LABELS_CORTO: Record<InsumoMURIC, string> = {
   '001-001': '001-001 Créditos',
   '001-002': '001-002 Atributos',
   '001-003': '001-003 Movimientos',
+  '001-999': '001-999 Todos',
 };
 
-export const CAMPOS_POR_INSUMO: Record<InsumoMURIC, CampoInsumo[]> = {
+const CAMPOS_POR_INSUMO_SEPARADO: Record<Exclude<InsumoMURIC, '001-999'>, CampoInsumo[]> = {
   '001-001': [
     { campo: 'identificacion_credito_entidad', etiqueta: 'Identificación Crédito Entidad', obligatorio: true },
     { campo: 'identificacion_negocio_vehiculo_universalidad', etiqueta: 'Identificación Negocio / Vehículo / Universalidad', obligatorio: false },
@@ -72,6 +76,43 @@ export const CAMPOS_POR_INSUMO: Record<InsumoMURIC, CampoInsumo[]> = {
     { campo: 'perdida_dado_incumplimiento', etiqueta: 'Pérdida Dado Incumplimiento', obligatorio: false },
   ],
 };
+
+export const IDENTIFICADORES = ['identificacion_credito_entidad', 'tipo_identificacion', 'numero_identificacion'];
+
+/**
+ * 001-999: los identificadores una vez y los campos propios de 001-001 y 001-003. Los atributos
+ * entran solo como columnas de atributo (no clave_atributo/valor_atributo). Un insumo se genera
+ * si la plantilla mapea al menos un campo propio de él (N1).
+ */
+const CAMPOS_TODOS: CampoInsumo[] = [
+  ...CAMPOS_POR_INSUMO_SEPARADO['001-001'].filter(c => IDENTIFICADORES.includes(c.campo)),
+  ...(['001-001', '001-003'] as const).flatMap(ins =>
+    CAMPOS_POR_INSUMO_SEPARADO[ins]
+      .filter(c => !IDENTIFICADORES.includes(c.campo))
+      .map(c => ({ ...c, insumo: ins }))
+  ),
+];
+
+export const CAMPOS_POR_INSUMO: Record<InsumoMURIC, CampoInsumo[]> = {
+  ...CAMPOS_POR_INSUMO_SEPARADO,
+  '001-999': CAMPOS_TODOS,
+};
+
+/**
+ * N1: insumos que llena un archivo 001-999 con estos campos. Un insumo se genera si hay al menos un
+ * campo propio de él (los identificadores no cuentan); 001-002, si hay al menos una columna de atributo.
+ */
+export function insumosGeneradosTodos(
+  campos: { campoStaging: string; claveAtributo: number | null }[]
+): InsumoMURIC[] {
+  return (['001-001', '001-002', '001-003'] as const).filter(ins =>
+    ins === '001-002'
+      ? campos.some(c => c.claveAtributo != null)
+      : campos.some(
+          c => c.claveAtributo == null && CAMPOS_TODOS.some(t => t.campo === c.campoStaging && t.insumo === ins)
+        )
+  );
+}
 
 // ─── Contrato de api/plantillas (propiedades en camelCase) ─────────────────────
 

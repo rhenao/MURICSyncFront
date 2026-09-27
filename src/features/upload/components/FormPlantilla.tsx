@@ -42,6 +42,8 @@ import { ATRIBUTOS_POLIZA } from '../../param/models/CatalogoAtributos.model';
 import {
   CAMPOS_POR_INSUMO,
   INSUMO_LABELS,
+  INSUMO_LABELS_CORTO,
+  insumosGeneradosTodos,
   type CampoInsumo,
   type InsumoMURIC,
   type PlantillaCampo,
@@ -430,7 +432,8 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
   // Catálogo de atributos (solo 001-002). Sin params.read no se consulta: un 403 del cliente OData cierra la sesión.
   const { hasPermission } = usePermission();
   const puedeLeerCatalogo = hasPermission('params.read');
-  const esAtributos = insumo === '001-002';
+  // 001-002 y 001-999 (Todos) admiten columnas de atributo.
+  const esAtributos = insumo === '001-002' || insumo === '001-999';
   const { entidades: catalogoRaw, cargando: cargandoCatalogo } = useEntidades<CatalogoAtributos>(
     '/CatalogoAtributos',
     { enabled: open && esAtributos && puedeLeerCatalogo }
@@ -450,6 +453,14 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
     : [];
   const camposYaUsados = new Set(filas.filter(f => !f.esAtributo).map(f => f.campoStaging).filter(Boolean));
   const clavesYaUsadas = new Set(filas.filter(f => f.esAtributo && f.claveAtributo != null).map(f => f.claveAtributo));
+
+  // 001-999: un insumo se genera si hay al menos un campo propio de él mapeado (N1; los identificadores no cuentan).
+  const esTodos = insumo === '001-999';
+  const insumosGenerados: InsumoMURIC[] = esTodos
+    ? insumosGeneradosTodos(
+        filas.map(f => ({ campoStaging: f.campoStaging, claveAtributo: f.esAtributo ? f.claveAtributo ?? 0 : null }))
+      )
+    : [];
 
   // ── Handlers del formulario ──────────────────────────────────────────────────
 
@@ -575,6 +586,10 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
       setError(errorAtributos);
       return;
     }
+    if (esTodos && insumosGenerados.length === 0) {
+      setError('La plantilla 001-999 debe mapear al menos un campo propio de algún insumo; los identificadores no cuentan.');
+      return;
+    }
     const sinCobertura = filasValidas.filter(
       f => !f.nombreColumnaArchivo.trim() && !f.valorPorDefecto.trim()
     );
@@ -650,8 +665,10 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
 
   // ── Datos derivados para la UI ───────────────────────────────────────────────
 
-  const obligatoriosFaltantes = camposDisponibles
-    .filter(c => c.obligatorio)
+  // 001-999: solo se exigen los obligatorios de los insumos que la plantilla genera (N1).
+  const obligatoriosFaltantes = (esTodos
+    ? camposDisponibles.filter(c => c.obligatorio && (c.insumo ? insumosGenerados.includes(c.insumo) : insumosGenerados.length > 0))
+    : camposDisponibles.filter(c => c.obligatorio))
     .filter(c => !new Set(filas.map(f => f.campoStaging)).has(c.campo));
 
   // Advertencia, no bloquea: varios dependen del tipo de persona (1 solo jurídica; 2 y 3 solo natural).
@@ -824,6 +841,22 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
               </Typography>
             )}
 
+            {esTodos && (
+              <Alert severity={insumosGenerados.length > 0 ? 'info' : 'warning'} sx={{ py: 0.5 }}>
+                {insumosGenerados.length > 0 ? (
+                  <>
+                    Un archivo con esta plantilla llenará:{' '}
+                    {insumosGenerados.map(i => (
+                      <Chip key={i} label={INSUMO_LABELS_CORTO[i]} size="small" sx={{ mr: 0.5 }} />
+                    ))}
+                    Solo se exigen los obligatorios de esos insumos.
+                  </>
+                ) : (
+                  'Mapea al menos un campo propio de algún insumo (los identificadores no cuentan) o una columna de atributo.'
+                )}
+              </Alert>
+            )}
+
             {/* ── Alerta de obligatorios faltantes ── */}
             {insumo && obligatoriosFaltantes.length > 0 && (
               <Alert severity="warning" sx={{ py: 0.5 }}>
@@ -945,6 +978,9 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
                                       <MenuItem key={c.campo} value={c.campo}>
                                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                                           {c.etiqueta}
+                                          {c.insumo && (
+                                            <Chip label={INSUMO_LABELS_CORTO[c.insumo]} size="small" variant="outlined" />
+                                          )}
                                           {c.obligatorio && (
                                             <Chip label="Obligatorio" size="small" color="warning" variant="outlined" />
                                           )}

@@ -4,6 +4,12 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Divider,
   FormControl,
   IconButton,
   InputLabel,
@@ -36,7 +42,12 @@ import SendIcon              from '@mui/icons-material/Send';
 import RefreshIcon           from '@mui/icons-material/Refresh';
 import axiosSecurityAPIClient from '../../../api/axiosSecurityAPIClient';
 import { useEntidades }      from '../../../hooks/useEntidades';
-import type { PlantillaResumen } from '../models/Plantilla.model';
+import {
+  INSUMO_LABELS_CORTO,
+  insumosGeneradosTodos,
+  type InsumoMURIC,
+  type PlantillaResumen,
+} from '../models/Plantilla.model';
 import PlantillaService from '../services/PlantillaService';
 
 // ─── API response types ───────────────────────────────────────────────────────
@@ -98,9 +109,11 @@ const INSUMOS = [
   { enum: 'Credito',    codigo: '001-001', label: 'Información general de créditos' },
   { enum: 'Atributo',   codigo: '001-002', label: 'Atributos del crédito y deudor' },
   { enum: 'Movimiento', codigo: '001-003', label: 'Movimientos de cartera' },
+  // Un archivo con campos de los tres insumos; solo con plantilla (ADR 0009 del backend).
+  { enum: 'Todos',      codigo: '001-999', label: 'Todos (un solo archivo)' },
 ] as const;
 
-type InsumoEnum = 'Credito' | 'Atributo' | 'Movimiento';
+type InsumoEnum = 'Credito' | 'Atributo' | 'Movimiento' | 'Todos';
 
 const ESTADO_COLOR: Record<string, 'default' | 'primary' | 'warning' | 'success' | 'error'> = {
   Iniciado:  'primary',
@@ -144,22 +157,25 @@ export default function CargaArchivos() {
 
   // File selection (one per insumo)
   const [archivos, setArchivos] = useState<Record<InsumoEnum, File | null>>({
-    Credito: null, Atributo: null, Movimiento: null,
+    Credito: null, Atributo: null, Movimiento: null, Todos: null,
   });
   const refCredito    = useRef<HTMLInputElement>(null);
   const refAtributo   = useRef<HTMLInputElement>(null);
   const refMovimiento = useRef<HTMLInputElement>(null);
+  const refTodos      = useRef<HTMLInputElement>(null);
   const fileRefs: Record<InsumoEnum, RefObject<HTMLInputElement | null>> = {
-    Credito: refCredito, Atributo: refAtributo, Movimiento: refMovimiento,
+    Credito: refCredito, Atributo: refAtributo, Movimiento: refMovimiento, Todos: refTodos,
   };
 
   // Plantilla selection (optional, one per insumo)
   const [plantillasMap, setPlantillasMap] = useState<Record<InsumoEnum, PlantillaResumen[]>>({
-    Credito: [], Atributo: [], Movimiento: [],
+    Credito: [], Atributo: [], Movimiento: [], Todos: [],
   });
   const [plantillaIds, setPlantillaIds] = useState<Record<InsumoEnum, number | ''>>(
-    { Credito: '', Atributo: '', Movimiento: '' }
+    { Credito: '', Atributo: '', Movimiento: '', Todos: '' }
   );
+  // N2: slots con datos que un archivo 001-999 va a reemplazar, pendientes de confirmar.
+  const [confirmarTodos, setConfirmarTodos] = useState<InsumoMURIC[] | null>(null);
   const [cargandoPlantillas, setCargandoPlantillas] = useState(false);
 
   // UI state
@@ -194,7 +210,7 @@ export default function CargaArchivos() {
             .then(data => ({ insumo: ins.enum as InsumoEnum, data }))
         )
       );
-      const map: Record<InsumoEnum, PlantillaResumen[]> = { Credito: [], Atributo: [], Movimiento: [] };
+      const map: Record<InsumoEnum, PlantillaResumen[]> = { Credito: [], Atributo: [], Movimiento: [], Todos: [] };
       for (const { insumo, data } of results) map[insumo] = data;
       setPlantillasMap(map);
     } catch {
@@ -259,8 +275,35 @@ export default function CargaArchivos() {
     }
   };
 
-  // Uses native fetch so the browser sets the correct multipart boundary automatically.
   const handleSubirArchivo = async (insumo: InsumoEnum) => {
+    if (insumo === 'Todos') await prepararSubidaTodos();
+    else await subirArchivo(insumo);
+  };
+
+  // N2: el archivo 001-999 reemplaza los slots que genera su plantilla; si ya tienen datos, se confirma antes.
+  const prepararSubidaTodos = async () => {
+    if (!lote || !archivos.Todos || plantillaIds.Todos === '') return;
+    setErrores([]);
+    try {
+      const plantilla = await PlantillaService.obtener(plantillaIds.Todos);
+      const generados = insumosGeneradosTodos(plantilla.campos);
+      const filasPorSlot: Record<string, number> = {
+        '001-001': lote.conteos?.creditos ?? 0,
+        '001-002': lote.conteos?.atributos ?? 0,
+        '001-003': lote.conteos?.movimientos ?? 0,
+      };
+      const conDatos = generados.filter(
+        ins => filasPorSlot[ins] > 0 || historial.some(h => h.insumo === ins && h.resultado === 'Exitoso')
+      );
+      if (conDatos.length > 0) setConfirmarTodos(conDatos);
+      else await subirArchivo('Todos');
+    } catch (err) {
+      setErrores([extractAxiosError(err)]);
+    }
+  };
+
+  // Uses native fetch so the browser sets the correct multipart boundary automatically.
+  const subirArchivo = async (insumo: InsumoEnum) => {
     if (!lote || !archivos[insumo]) return;
     setSubiendoInsumo(insumo);
     setErrores([]);
@@ -287,8 +330,15 @@ export default function CargaArchivos() {
         throw new Error(faltantes.length ? `${msg} Columnas faltantes: ${faltantes.join(', ')}` : msg);
       }
 
-      await refrescarLote(lote.id);
-      setSnackMsg('Archivo subido y parseado exitosamente.');
+      if (insumo === 'Todos') {
+        // 001-999 responde un historial por slot llenado.
+        const llenados = ((await res.json().catch(() => [])) as HistorialArchivo[]).map(h => h.insumo);
+        await refrescarLote(lote.id);
+        setSnackMsg(`Archivo 001-999 cargado. Llenó: ${llenados.join(', ') || '—'}.`);
+      } else {
+        await refrescarLote(lote.id);
+        setSnackMsg('Archivo subido y parseado exitosamente.');
+      }
     } catch (err) {
       setErrores([err instanceof Error ? err.message : 'Error al subir el archivo']);
     } finally {
@@ -420,9 +470,10 @@ export default function CargaArchivos() {
     setLote(null);
     setHistorial([]);
     setTransmisiones([]);
-    setArchivos({ Credito: null, Atributo: null, Movimiento: null });
-    setPlantillasMap({ Credito: [], Atributo: [], Movimiento: [] });
-    setPlantillaIds({ Credito: '', Atributo: '', Movimiento: '' });
+    setArchivos({ Credito: null, Atributo: null, Movimiento: null, Todos: null });
+    setPlantillasMap({ Credito: [], Atributo: [], Movimiento: [], Todos: [] });
+    setPlantillaIds({ Credito: '', Atributo: '', Movimiento: '', Todos: '' });
+    setConfirmarTodos(null);
     setErrores([]);
     setCodigoEntidad('');
     setFechaCorte(getLastDayOfPreviousMonth());
@@ -576,10 +627,19 @@ export default function CargaArchivos() {
               const insumo   = ins.enum as InsumoEnum;
               const archivo  = archivos[insumo];
               const subiendo = subiendoInsumo === insumo;
-              const yaSubido = historial.some(h => h.insumo === ins.codigo);
+              const esTodos  = insumo === 'Todos';
+              const yaSubido = !esTodos && historial.some(h => h.insumo === ins.codigo);
               const plantillas = plantillasMap[insumo];
+              const sinPlantillaObligatoria = esTodos && plantillaIds.Todos === '';
               return (
                 <Box key={ins.enum}>
+                  {esTodos && (
+                    <Divider sx={{ mb: 1.5 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        o un solo archivo con los tres insumos
+                      </Typography>
+                    </Divider>
+                  )}
                   <input
                     ref={fileRefs[insumo]}
                     type="file"
@@ -604,14 +664,16 @@ export default function CargaArchivos() {
                   </Stack>
                   <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" pl={1}>
                     <FormControl size="small" sx={{ minWidth: 220 }} disabled={!canUpload || isBusy || cargandoPlantillas}>
-                      <InputLabel id={`plantilla-${insumo}-label`}>Plantilla (opcional)</InputLabel>
+                      <InputLabel id={`plantilla-${insumo}-label`}>
+                        {esTodos ? 'Plantilla (obligatoria)' : 'Plantilla (opcional)'}
+                      </InputLabel>
                       <Select
                         labelId={`plantilla-${insumo}-label`}
-                        label="Plantilla (opcional)"
+                        label={esTodos ? 'Plantilla (obligatoria)' : 'Plantilla (opcional)'}
                         value={plantillaIds[insumo]}
                         onChange={e => setPlantillaIds(prev => ({ ...prev, [insumo]: e.target.value as number | '' }))}
                       >
-                        <MenuItem value=""><em>Sin plantilla</em></MenuItem>
+                        <MenuItem value=""><em>{esTodos ? 'Elige una plantilla 001-999' : 'Sin plantilla'}</em></MenuItem>
                         {plantillas.map(p => (
                           <MenuItem key={p.id} value={p.id}>
                             {p.nombre}
@@ -639,7 +701,7 @@ export default function CargaArchivos() {
                       variant="contained"
                       startIcon={<PublishIcon />}
                       onClick={() => handleSubirArchivo(insumo)}
-                      disabled={!archivo || !canUpload || isBusy}
+                      disabled={!archivo || !canUpload || isBusy || sinPlantillaObligatoria}
                     >
                       {subiendo ? 'Subiendo…' : 'Subir'}
                     </Button>
@@ -651,6 +713,29 @@ export default function CargaArchivos() {
           </Stack>
         </Paper>
       )}
+
+      <Dialog open={confirmarTodos !== null} onClose={() => setConfirmarTodos(null)} maxWidth="xs">
+        <DialogTitle>Reemplazar archivos cargados</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            El archivo 001-999 va a reemplazar lo que ya está cargado en:{' '}
+            <strong>{(confirmarTodos ?? []).map(i => INSUMO_LABELS_CORTO[i]).join(', ')}</strong>.
+            Los datos anteriores de esos insumos se borran. ¿Continuar?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmarTodos(null)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setConfirmarTodos(null);
+              subirArchivo('Todos');
+            }}
+          >
+            Reemplazar
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── Step 3: Validación y promoción ── */}
       {lote && (

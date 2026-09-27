@@ -37,10 +37,11 @@ import useAuth from '../../auth/hooks/useAuth';
 import { extractBackendErrors } from '../../../utils/extractBackendErrors';
 
 const INSUMOS: { value: InsumoMURIC | 'todos'; label: string }[] = [
-  { value: 'todos', label: 'Todos' },
+  { value: 'todos', label: 'Todas' }, // "Todas" para no confundir con el insumo 001-999 Todos
   { value: '001-001', label: '001-001 Créditos' },
   { value: '001-002', label: '001-002 Atributos' },
   { value: '001-003', label: '001-003 Movimientos' },
+  { value: '001-999', label: '001-999 Todos' },
 ];
 
 interface ConfirmDeleteState {

@@ -341,6 +341,8 @@ export default function CargaArchivos() {
       }
     } catch (err) {
       setErrores([err instanceof Error ? err.message : 'Error al subir el archivo']);
+      // El backend registra el intento fallido en el historial; se refresca para mostrarlo.
+      await refrescarLote(lote.id).catch(() => {});
     } finally {
       setSubiendoInsumo(null);
     }
@@ -922,7 +924,7 @@ export default function CargaArchivos() {
                     <TableCell align="right">{h.filasParseadas ?? '—'}</TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={0.5} alignItems="center">
-                        {h.resultado === 'Ok'
+                        {h.resultado === 'Exitoso'
                           ? <CheckCircleOutlineIcon color="success" fontSize="small" />
                           : <ErrorOutlineIcon color="error" fontSize="small" />
                         }

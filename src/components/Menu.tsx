@@ -16,6 +16,7 @@ import {
   AccountTree,
   CloudUpload,
   FileCopy,
+  ViewList,
   //FolderOpen,
   //ForwardToInbox,
   Assessment,
@@ -66,6 +67,7 @@ export function Menu() {
   const canAdmin = hasRole("ADMIN", "OPERADOR", "CONSULTA");
   const canCargue = hasRole("ADMIN", "OPERADOR");
   const canVerPlantillas = hasPermission("cargas.read");
+  const canVerLotes = hasPermission("cargas.read");
   const canEnvio = hasRole("ADMIN", "OPERADOR");
   const canConsultas = hasRole("ADMIN", "OPERADOR", "CONSULTA");
   const canAdminUsuarios = hasRole("ADMIN", "SEGURIDAD");
@@ -345,7 +347,7 @@ export function Menu() {
         )}
 
         {/* Primer nivel: Proceso de cargue de archivos */}
-        {(canCargue || canVerPlantillas) && (
+        {(canCargue || canVerPlantillas || canVerLotes) && (
         <>
         <ListItemButton onClick={() => setOpenCargue(!openCargue)}>
           <ListItemIcon>
@@ -364,6 +366,16 @@ export function Menu() {
             >
               <ListItemIcon><FileCopy fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Plantillas de carga" />
+            </ListItemButton>
+            )}
+            {canVerLotes && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/lotes-carga"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><ViewList fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Lotes de carga" />
             </ListItemButton>
             )}
             {canCargue && (

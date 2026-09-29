@@ -40,6 +40,7 @@ import PasswordChange from "./features/security/components/PasswordChange.tsx";
 import CargaArchivos from "./features/upload/components/CargaArchivos.tsx";
 import ConfigMapeoCarga from "./features/upload/components/ConfigMapeoCarga";
 import ListPlantillas from "./features/upload/components/ListPlantillas";
+import ListLotes from "./features/upload/components/ListLotes";
 import EnviaMURIC from "./features/submission/components/EnviaMURIC";
 import RequireAuth from "./features/auth/components/RequireAuth";
 import RequireRole from "./features/auth/components/RequireRole";
@@ -198,6 +199,14 @@ export default function AppRoutes() {
           }
         />
         <Route path="/app/cambiar-contrasena" element={<PasswordChange />} />
+        <Route
+          path="/app/lotes-carga"
+          element={
+            <RequirePermission requiredPermissions={["cargas.read"]}>
+              <ListLotes />
+            </RequirePermission>
+          }
+        />
         <Route path="/app/carga-archivos" element={<CargaArchivos />} />
         <Route
           path="/app/plantillas-carga"

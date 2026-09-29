@@ -49,6 +49,7 @@ import {
   type PlantillaResumen,
 } from '../models/Plantilla.model';
 import PlantillaService from '../services/PlantillaService';
+import { ESTADO_LOTE_COLOR, ESTADOS_ACTIVOS } from '../models/Lote.model';
 
 // ─── API response types ───────────────────────────────────────────────────────
 
@@ -112,15 +113,6 @@ const INSUMOS = [
 ] as const;
 
 type InsumoEnum = 'Credito' | 'Atributo' | 'Movimiento' | 'Todos';
-
-const ESTADO_COLOR: Record<string, 'default' | 'primary' | 'warning' | 'success' | 'error'> = {
-  Iniciado:  'primary',
-  Parseado:  'warning',
-  Validado:  'primary',
-  Promovido: 'success',
-  Anulado:   'default',
-  Fallido:   'error',
-};
 
 const ESTADO_TX_COLOR: Record<string, 'default' | 'warning' | 'success' | 'error'> = {
   Enviado:   'warning',
@@ -482,7 +474,7 @@ export default function CargaArchivos() {
   const canUpload    = !!lote && ['Iniciado', 'Parseado'].includes(lote.estado);
   const canValidar   = !!lote && ['Parseado', 'Validado'].includes(lote.estado);
   const canPromover  = !!lote && lote.estado === 'Validado';
-  const canAnular    = !!lote && ['Iniciado', 'Parseado', 'Validado', 'Fallido'].includes(lote.estado);
+  const canAnular    = !!lote && (ESTADOS_ACTIVOS as string[]).includes(lote.estado);
   const canTransmitir = !!lote && lote.estado === 'Promovido';
   const isBusy       = loading || subiendoInsumo !== null || transmitiendo || descargandoAvro;
 
@@ -505,7 +497,7 @@ export default function CargaArchivos() {
               <Chip
                 label={lote.estado}
                 size="small"
-                color={ESTADO_COLOR[lote.estado] ?? 'default'}
+                color={ESTADO_LOTE_COLOR[lote.estado] ?? 'default'}
               />
             )}
           </Stack>

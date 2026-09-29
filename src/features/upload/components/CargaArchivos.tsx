@@ -31,6 +31,7 @@ import ResumenLote from './cargue/ResumenLote';
 import PanelArchivos from './cargue/PanelArchivos';
 import PanelAcciones from './cargue/PanelAcciones';
 import HistorialArchivos from './cargue/HistorialArchivos';
+import PanelErrores from './cargue/PanelErrores';
 import DialogConfirmarAccion from './cargue/DialogConfirmarAccion';
 import useAuth from '../../auth/hooks/useAuth';
 import ChipEntidadReportante from '../../configuracion/components/ChipEntidadReportante';
@@ -264,9 +265,10 @@ export default function CargaArchivos() {
     setLoading(true);
     setErrores([]);
     try {
-      await axiosSecurityAPIClient.post(`/cargas/${lote.id}/validar`);
+      const { data } = await axiosSecurityAPIClient.post<{ errores: number }>(`/cargas/${lote.id}/validar`);
       await refrescarLote(lote.id);
-      setSnackMsg('Validación completada.');
+      // Con errores no hay mensaje de éxito: el panel de errores aparece con el detalle.
+      if (data.errores === 0) setSnackMsg('Validación sin errores. El lote se puede promover.');
     } catch (err) {
       setErrores([extractAxiosError(err)]);
     } finally {
@@ -308,7 +310,9 @@ export default function CargaArchivos() {
 
   const canUpload    = !!lote && ESTADOS_CON_SUBIDA.includes(lote.estado);
   const canValidar   = !!lote && ['Parseado', 'Validado'].includes(lote.estado);
-  const canPromover  = !!lote && lote.estado === 'Validado';
+  const erroresBloqueantes = lote?.resumenErrores?.errores ?? 0;
+  // Los errores de validación (severidad Error) bloquean la promoción también en el backend.
+  const canPromover  = !!lote && lote.estado === 'Validado' && erroresBloqueantes === 0;
   const canAnular    = !!lote && (ESTADOS_ACTIVOS as string[]).includes(lote.estado);
   const isBusy       = loading || subiendoInsumo !== null;
 
@@ -402,6 +406,9 @@ export default function CargaArchivos() {
           canPromover={canPromover}
           canAnular={canAnular}
           isBusy={isBusy}
+          motivoNoPromover={lote.estado === 'Validado' && erroresBloqueantes > 0
+            ? `El lote tiene ${erroresBloqueantes} error(es) de validación.`
+            : undefined}
           onValidar={handleValidar}
           onPromover={() => setConfirmarAccion('promover')}
           onAnular={() => setConfirmarAccion('anular')}
@@ -471,6 +478,16 @@ export default function CargaArchivos() {
             {errores.map((e, i) => <li key={i}>{e}</li>)}
           </ul>
         </Alert>
+      )}
+
+      {/* ── Errores de validación ── */}
+      {lote && (lote.resumenErrores?.total ?? 0) > 0 && (
+        <PanelErrores
+          loteId={lote.id}
+          total={lote.resumenErrores!.total}
+          errores={erroresBloqueantes}
+          version={lote}
+        />
       )}
 
       {/* ── Historial de archivos ── */}

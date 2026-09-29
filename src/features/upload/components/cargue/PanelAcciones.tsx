@@ -1,4 +1,4 @@
-import { Button, Paper, Stack, Typography } from '@mui/material';
+import { Button, Paper, Stack, Tooltip, Typography } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import BlockIcon              from '@mui/icons-material/Block';
 import VerifiedIcon           from '@mui/icons-material/Verified';
@@ -7,6 +7,8 @@ interface PanelAccionesProps {
   canValidar: boolean;
   canPromover: boolean;
   canAnular: boolean;
+  // Por qué no se puede promover un lote validado (p. ej. tiene errores); se muestra como tooltip.
+  motivoNoPromover?: string;
   isBusy: boolean;
   onValidar: () => void;
   onPromover: () => void;
@@ -18,6 +20,7 @@ export default function PanelAcciones({
   canValidar,
   canPromover,
   canAnular,
+  motivoNoPromover,
   isBusy,
   onValidar,
   onPromover,
@@ -37,15 +40,19 @@ export default function PanelAcciones({
         >
           Validar lote
         </Button>
-        <Button
-          variant="contained"
-          color="success"
-          startIcon={<CheckCircleOutlineIcon />}
-          onClick={onPromover}
-          disabled={!canPromover || isBusy}
-        >
-          Promover a MURIC
-        </Button>
+        <Tooltip title={motivoNoPromover ?? ''}>
+          <span>
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<CheckCircleOutlineIcon />}
+              onClick={onPromover}
+              disabled={!canPromover || isBusy}
+            >
+              Promover a MURIC
+            </Button>
+          </span>
+        </Tooltip>
         <Button
           variant="outlined"
           color="error"

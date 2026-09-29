@@ -26,6 +26,8 @@ interface PanelTransmisionProps {
   transmitiendo: boolean;
   consultandoTxId: number | null;
   isBusy: boolean;
+  // Sin cargas.write: solo el historial; generar, transmitir y consultar son POST o requieren escritura.
+  soloLectura: boolean;
   onDescargarAvro: () => void;
   onTransmitir: () => void;
   onConsultarEstado: (txId: number) => void;
@@ -38,6 +40,7 @@ export default function PanelTransmision({
   transmitiendo,
   consultandoTxId,
   isBusy,
+  soloLectura,
   onDescargarAvro,
   onTransmitir,
   onConsultarEstado,
@@ -47,25 +50,30 @@ export default function PanelTransmision({
       <Typography variant="subtitle1" fontWeight={600} mb={1.5}>
         4. Transmisión a la SFC
       </Typography>
-      <Stack direction="row" spacing={1.5} alignItems="center" mb={transmitiendo ? 1.5 : 0}>
-        <Button
-          variant="outlined"
-          startIcon={<FileDownloadIcon />}
-          onClick={onDescargarAvro}
-          disabled={isBusy}
-        >
-          {descargandoAvro ? 'Generando…' : 'Descargar AVRO (.avro.p7z)'}
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<SendIcon />}
-          onClick={onTransmitir}
-          disabled={isBusy}
-        >
-          {transmitiendo ? 'Transmitiendo…' : 'Transmitir a SFC'}
-        </Button>
-      </Stack>
+      {!soloLectura && (
+        <Stack direction="row" spacing={1.5} alignItems="center" mb={transmitiendo ? 1.5 : 0}>
+          <Button
+            variant="outlined"
+            startIcon={<FileDownloadIcon />}
+            onClick={onDescargarAvro}
+            disabled={isBusy}
+          >
+            {descargandoAvro ? 'Generando…' : 'Descargar AVRO (.avro.p7z)'}
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<SendIcon />}
+            onClick={onTransmitir}
+            disabled={isBusy}
+          >
+            {transmitiendo ? 'Transmitiendo…' : 'Transmitir a SFC'}
+          </Button>
+        </Stack>
+      )}
+      {soloLectura && transmisiones.length === 0 && (
+        <Typography variant="body2" color="text.secondary">Sin transmisiones.</Typography>
+      )}
       {transmitiendo && <LinearProgress sx={{ mt: 1 }} />}
 
       {/* Historial de transmisiones */}
@@ -85,7 +93,7 @@ export default function PanelTransmision({
                   <TableCell align="center">Créditos / Demog. / Mov.</TableCell>
                   <TableCell>Fecha transmisión</TableCell>
                   <TableCell>Usuario</TableCell>
-                  <TableCell align="center">Acciones</TableCell>
+                  {!soloLectura && <TableCell align="center">Acciones</TableCell>}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -126,19 +134,21 @@ export default function PanelTransmision({
                       {new Date(tx.fechaTransmision).toLocaleString('es-CO')}
                     </TableCell>
                     <TableCell>{tx.usuarioTransmisor}</TableCell>
-                    <TableCell align="center">
-                      <Tooltip title="Consultar estado en SFC">
-                        <span>
-                          <IconButton
-                            size="small"
-                            onClick={() => onConsultarEstado(tx.id)}
-                            disabled={consultandoTxId === tx.id || isBusy}
-                          >
-                            <RefreshIcon fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                    </TableCell>
+                    {!soloLectura && (
+                      <TableCell align="center">
+                        <Tooltip title="Consultar estado en SFC">
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => onConsultarEstado(tx.id)}
+                              disabled={consultandoTxId === tx.id || isBusy}
+                            >
+                              <RefreshIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

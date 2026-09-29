@@ -17,6 +17,8 @@ interface UniversalidadOData {
   Estado?: string;
 }
 
+const MAX_OBSERVACIONES = 500;
+
 const getLastDayOfPreviousMonth = (): string => {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
@@ -24,7 +26,7 @@ const getLastDayOfPreviousMonth = (): string => {
 
 interface FormNuevoLoteProps {
   loading: boolean;
-  onCrear: (fechaCorte: string, universalidadCodigo: number) => void;
+  onCrear: (fechaCorte: string, universalidadCodigo: number, observaciones: string | null) => void;
 }
 
 /** Paso 1: fecha de corte y universalidad del lote nuevo. */
@@ -32,6 +34,7 @@ export default function FormNuevoLote({ loading, onCrear }: FormNuevoLoteProps) 
   const [fechaCorte, setFechaCorte] = useState(getLastDayOfPreviousMonth);
   // Tipo y código de la entidad reportante no los elige el usuario: son los de Titularice (backend).
   const [universalidadCodigo, setUniversalidadCodigo] = useState('');
+  const [observaciones, setObservaciones] = useState('');
 
   const { entidades: uRaw, cargando: cargandoUniv } = useEntidades<UniversalidadOData>('/Universalidades');
   const universalidades = useMemo(() =>
@@ -74,11 +77,20 @@ export default function FormNuevoLote({ loading, onCrear }: FormNuevoLoteProps) 
             </Select>
           </FormControl>
         </Grid>
+        <Grid size={4}>
+          <TextField
+            label="Observaciones (opcional)"
+            fullWidth
+            value={observaciones}
+            onChange={e => setObservaciones(e.target.value)}
+            slotProps={{ htmlInput: { maxLength: MAX_OBSERVACIONES } }}
+          />
+        </Grid>
         <Grid size={2}>
           <Button
             variant="contained"
             size="large"
-            onClick={() => onCrear(fechaCorte, parseInt(universalidadCodigo))}
+            onClick={() => onCrear(fechaCorte, parseInt(universalidadCodigo), observaciones.trim() || null)}
             disabled={!fechaCorte || !universalidadCodigo || loading}
           >
             Crear lote

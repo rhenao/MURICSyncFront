@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -35,6 +36,8 @@ interface PanelArchivosProps {
   historial: HistorialArchivo[];
   subiendoInsumo: InsumoEnum | null;
   canUpload: boolean;
+  // Aviso sobre la fila de insumos (p. ej. subir a un lote validado lo devuelve a Parseado).
+  aviso?: string;
   isBusy: boolean;
   cargandoPlantillas: boolean;
   onArchivo: (insumo: InsumoEnum, archivo: File | null) => void;
@@ -48,12 +51,13 @@ interface PanelArchivosProps {
 
 /** Paso 2: una fila por insumo (plantilla, archivo y subir) y la fila 001-999. */
 export default function PanelArchivos(props: PanelArchivosProps) {
-  const { confirmarTodos, onCancelarTodos, onConfirmarTodos } = props;
+  const { aviso, confirmarTodos, onCancelarTodos, onConfirmarTodos } = props;
   return (
     <Paper sx={{ p: 2 }}>
       <Typography variant="subtitle1" fontWeight={600} mb={1.5}>
         2. Carga de archivos
       </Typography>
+      {aviso && <Alert severity="info" sx={{ mb: 2 }}>{aviso}</Alert>}
       <Stack spacing={2}>
         {INSUMOS.map(ins => (
           <FilaInsumo key={ins.enum} insumo={ins} {...props} />

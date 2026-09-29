@@ -20,6 +20,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import NotesIcon from '@mui/icons-material/Notes';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   ESTADO_LOTE_COLOR,
   ESTADOS_ACTIVOS,
@@ -174,6 +175,19 @@ export default function ListLotes() {
       size: 190,
       Cell: ({ row }) => (
         <FechaUsuario fecha={row.original.fechaPromocion} usuario={row.original.usuarioPromotor} />
+      ),
+    },
+    {
+      id: 'acciones',
+      header: 'Abrir',
+      size: 70,
+      enableSorting: false,
+      Cell: ({ row }) => (
+        <Tooltip title={`Abrir el lote #${row.original.id}`}>
+          <IconButton size="small" onClick={() => navigate(`/app/carga-archivos/${row.original.id}`)}>
+            <OpenInNewIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
       ),
     },
   ];

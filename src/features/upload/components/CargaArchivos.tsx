@@ -1,17 +1,17 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Box,
+  Button,
   Chip,
-  IconButton,
   LinearProgress,
   Paper,
   Snackbar,
   Stack,
-  Tooltip,
   Typography,
 } from '@mui/material';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import axiosSecurityAPIClient from '../../../api/axiosSecurityAPIClient';
 import {
   insumosGeneradosTodos,
@@ -33,10 +33,35 @@ import PanelArchivos from './cargue/PanelArchivos';
 import PanelAcciones from './cargue/PanelAcciones';
 import PanelTransmision from './cargue/PanelTransmision';
 import HistorialArchivos from './cargue/HistorialArchivos';
+import DialogConfirmarAccion from './cargue/DialogConfirmarAccion';
+import useAuth from '../../auth/hooks/useAuth';
+
+const extractAxiosError = (err: unknown): string => {
+  const d = (err as { response?: { data?: unknown } })?.response?.data;
+  if (!d) return err instanceof Error ? err.message : 'Error desconocido';
+  if (typeof d === 'string') return d;
+  const rec = d as Record<string, unknown>;
+  const msg = String(rec.mensaje ?? rec.message ?? 'Error desconocido');
+  const faltantes = (rec.columnasFaltantes as string[] | undefined) ?? [];
+  return faltantes.length ? `${msg} Columnas faltantes: ${faltantes.join(', ')}` : msg;
+};
+
+const respuestaDe = (err: unknown) =>
+  (err as { response?: { status?: number; data?: unknown } })?.response;
+
+// Estados en los que se pueden subir archivos (en Validado el lote vuelve a Parseado).
+const ESTADOS_CON_SUBIDA = ['Iniciado', 'Parseado', 'Validado'];
 
 // Orquesta el ciclo de vida del lote: crear → subir → validar → promover → AVRO / transmitir, o anular.
 // El estado y las llamadas al API viven aquí; los paneles de ./cargue solo pintan.
+// /app/carga-archivos crea un lote nuevo; /app/carga-archivos/:id abre uno existente.
 export default function CargaArchivos() {
+  const { id: idParam } = useParams();
+  const navigate = useNavigate();
+  const { hasPermission } = useAuth();
+  // Sin cargas.write la pantalla es de consulta: un 403 del API cierra la sesión.
+  const canWrite = hasPermission('cargas.write');
+
   // Lote state
   const [lote, setLote]         = useState<LoteResumen | null>(null);
   const [historial, setHistorial] = useState<HistorialArchivo[]>([]);
@@ -66,11 +91,18 @@ export default function CargaArchivos() {
   const [consultandoTxId, setConsultandoTxId] = useState<number | null>(null);
   const [errores, setErrores]               = useState<string[]>([]);
   const [snackMsg, setSnackMsg]             = useState<string | null>(null);
+  const [cargandoLote, setCargandoLote]     = useState(false);
+  const [noEncontrado, setNoEncontrado]     = useState(false);
+  // 409 al crear: ya hay un lote activo para ese corte y universalidad.
+  const [loteExistente, setLoteExistente]   = useState<number | null>(null);
+  // Al crear con un lote promovido del mismo corte; se muestra mientras ese lote siga abierto.
+  const [advertencia, setAdvertencia]       = useState<{ loteId: number; texto: string } | null>(null);
+  const [confirmarAccion, setConfirmarAccion] = useState<'promover' | 'anular' | null>(null);
 
   // ─── API helpers ─────────────────────────────────────────────────────────────
 
   // Las plantillas son globales: no dependen de la universalidad del lote.
-  const fetchPlantillas = async () => {
+  const fetchPlantillas = useCallback(async () => {
     setCargandoPlantillas(true);
     try {
       const results = await Promise.all(
@@ -88,9 +120,9 @@ export default function CargaArchivos() {
     } finally {
       setCargandoPlantillas(false);
     }
-  };
+  }, []);
 
-  const fetchTransmisiones = async (loteId: number) => {
+  const fetchTransmisiones = useCallback(async (loteId: number) => {
     try {
       const { data } = await axiosSecurityAPIClient.get<TransmisionSfc[]>(
         `/cargas/${loteId}/transmisiones`
@@ -99,9 +131,9 @@ export default function CargaArchivos() {
     } catch {
       // silently ignore
     }
-  };
+  }, []);
 
-  const refrescarLote = async (id: number) => {
+  const refrescarLote = useCallback(async (id: number) => {
     const [loteRes, historialRes] = await Promise.all([
       axiosSecurityAPIClient.get<LoteResumen>(`/cargas/${id}`),
       axiosSecurityAPIClient.get<HistorialArchivo[]>(`/cargas/${id}/historial`),
@@ -111,33 +143,71 @@ export default function CargaArchivos() {
     if (loteRes.data.estado === 'Promovido') {
       await fetchTransmisiones(id);
     }
-  };
+  }, [fetchTransmisiones]);
 
-  const extractAxiosError = (err: unknown): string => {
-    const d = (err as { response?: { data?: unknown } })?.response?.data;
-    if (!d) return err instanceof Error ? err.message : 'Error desconocido';
-    if (typeof d === 'string') return d;
-    const rec = d as Record<string, unknown>;
-    const msg = String(rec.mensaje ?? rec.message ?? 'Error desconocido');
-    const faltantes = (rec.columnasFaltantes as string[] | undefined) ?? [];
-    return faltantes.length ? `${msg} Columnas faltantes: ${faltantes.join(', ')}` : msg;
-  };
+  const handleReset = useCallback(() => {
+    setLote(null);
+    setHistorial([]);
+    setTransmisiones([]);
+    setArchivos({ Credito: null, Atributo: null, Movimiento: null, Todos: null });
+    setPlantillasMap({ Credito: [], Atributo: [], Movimiento: [], Todos: [] });
+    setPlantillaIds({ Credito: '', Atributo: '', Movimiento: '', Todos: '' });
+    setConfirmarTodos(null);
+    setConfirmarAccion(null);
+    setErrores([]);
+    setLoteExistente(null);
+    setNoEncontrado(false);
+  }, []);
+
+  // El lote sale de la URL: al abrirlo desde la lista, al crearlo o al recargar la página.
+  useEffect(() => {
+    if (!idParam) {
+      handleReset();
+      return;
+    }
+    const id = Number(idParam);
+    if (id === lote?.id) return;
+    if (!Number.isInteger(id)) {
+      handleReset();
+      setNoEncontrado(true);
+      return;
+    }
+    (async () => {
+      handleReset();
+      setCargandoLote(true);
+      try {
+        await refrescarLote(id);
+        if (canWrite) fetchPlantillas();
+      } catch (err) {
+        if (respuestaDe(err)?.status === 404) setNoEncontrado(true);
+        else setErrores([extractAxiosError(err)]);
+      } finally {
+        setCargandoLote(false);
+      }
+    })();
+  }, [idParam, lote?.id, canWrite, refrescarLote, fetchPlantillas, handleReset]);
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
 
-  const handleCrearLote = async (fechaCorte: string, universalidadCodigo: number) => {
+  const handleCrearLote = async (fechaCorte: string, universalidadCodigo: number, observaciones: string | null) => {
     setLoading(true);
     setErrores([]);
+    setLoteExistente(null);
     try {
-      const { data } = await axiosSecurityAPIClient.post<LoteResumen>('/cargas', {
+      const { data } = await axiosSecurityAPIClient.post<LoteResumen & { advertencia?: string }>('/cargas', {
         fechaCorte,
         universalidadCodigo,
+        observaciones,
       });
-      setLote(data);
+      if (data.advertencia) setAdvertencia({ loteId: data.id, texto: data.advertencia });
       setSnackMsg(`Lote #${data.id} creado exitosamente.`);
-      fetchPlantillas();
+      // La URL del lote hace que una recarga de la página no lo pierda; el efecto lo carga.
+      navigate(`/app/carga-archivos/${data.id}`, { replace: true });
     } catch (err) {
       setErrores([extractAxiosError(err)]);
+      const res = respuestaDe(err);
+      const existente = (res?.data as { loteIdExistente?: unknown } | undefined)?.loteIdExistente;
+      if (res?.status === 409 && typeof existente === 'number') setLoteExistente(existente);
     } finally {
       setLoading(false);
     }
@@ -336,20 +406,9 @@ export default function CargaArchivos() {
     }
   };
 
-  const handleReset = () => {
-    setLote(null);
-    setHistorial([]);
-    setTransmisiones([]);
-    setArchivos({ Credito: null, Atributo: null, Movimiento: null, Todos: null });
-    setPlantillasMap({ Credito: [], Atributo: [], Movimiento: [], Todos: [] });
-    setPlantillaIds({ Credito: '', Atributo: '', Movimiento: '', Todos: '' });
-    setConfirmarTodos(null);
-    setErrores([]);
-  };
-
   // ─── Derived state ────────────────────────────────────────────────────────────
 
-  const canUpload    = !!lote && ['Iniciado', 'Parseado'].includes(lote.estado);
+  const canUpload    = !!lote && ESTADOS_CON_SUBIDA.includes(lote.estado);
   const canValidar   = !!lote && ['Parseado', 'Validado'].includes(lote.estado);
   const canPromover  = !!lote && lote.estado === 'Validado';
   const canAnular    = !!lote && (ESTADOS_ACTIVOS as string[]).includes(lote.estado);
@@ -379,23 +438,41 @@ export default function CargaArchivos() {
               />
             )}
           </Stack>
-          <Tooltip title="Reiniciar">
-            <IconButton size="small" onClick={handleReset}>
-              <RestartAltIcon />
-            </IconButton>
-          </Tooltip>
+          <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/app/lotes-carga')}>
+            Volver a la lista
+          </Button>
         </Stack>
       </Paper>
 
+      {cargandoLote && <LinearProgress />}
+
+      {noEncontrado && (
+        <Alert severity="warning">El lote #{idParam} no existe.</Alert>
+      )}
+
       {/* ── Step 1: Configuración del lote / resumen ── */}
-      <Paper sx={{ p: 2 }}>
-        {!lote
-          ? <FormNuevoLote loading={loading} onCrear={handleCrearLote} />
-          : <ResumenLote lote={lote} />}
-      </Paper>
+      {lote ? (
+        <Paper sx={{ p: 2 }}>
+          <ResumenLote lote={lote} />
+        </Paper>
+      ) : !idParam && (
+        <Paper sx={{ p: 2 }}>
+          {canWrite
+            ? <FormNuevoLote loading={loading} onCrear={handleCrearLote} />
+            : <Alert severity="info">No tiene permiso para crear lotes. Puede consultarlos en la lista.</Alert>}
+        </Paper>
+      )}
+
+      {lote && advertencia?.loteId === lote.id && (
+        <Alert severity="warning" onClose={() => setAdvertencia(null)}>{advertencia.texto}</Alert>
+      )}
+
+      {lote && !canWrite && (
+        <Alert severity="info">Solo consulta: no tiene permiso para modificar lotes.</Alert>
+      )}
 
       {/* ── Step 2: Carga de archivos ── */}
-      {lote && (
+      {lote && canWrite && (
         <PanelArchivos
           archivos={archivos}
           plantillasMap={plantillasMap}
@@ -403,6 +480,9 @@ export default function CargaArchivos() {
           historial={historial}
           subiendoInsumo={subiendoInsumo}
           canUpload={canUpload}
+          aviso={lote.estado === 'Validado'
+            ? 'El lote ya está validado. Si sube un archivo, vuelve a Parseado y hay que validarlo de nuevo.'
+            : undefined}
           isBusy={isBusy}
           cargandoPlantillas={cargandoPlantillas}
           onArchivo={(insumo, f) => setArchivos(prev => ({ ...prev, [insumo]: f }))}
@@ -418,17 +498,43 @@ export default function CargaArchivos() {
       )}
 
       {/* ── Step 3: Validación y promoción ── */}
-      {lote && (
+      {lote && canWrite && (
         <PanelAcciones
           canValidar={canValidar}
           canPromover={canPromover}
           canAnular={canAnular}
           isBusy={isBusy}
           onValidar={handleValidar}
-          onPromover={handlePromover}
-          onAnular={handleAnular}
+          onPromover={() => setConfirmarAccion('promover')}
+          onAnular={() => setConfirmarAccion('anular')}
         />
       )}
+
+      {/* Promover y anular no se pueden deshacer (A1). */}
+      <DialogConfirmarAccion
+        open={confirmarAccion === 'promover'}
+        titulo={`Promover el lote #${lote?.id ?? ''}`}
+        mensaje="Los créditos, atributos y movimientos del lote pasan a las tablas MURIC. Esta acción no se puede deshacer."
+        textoConfirmar="Promover"
+        color="success"
+        onCancelar={() => setConfirmarAccion(null)}
+        onConfirmar={() => {
+          setConfirmarAccion(null);
+          handlePromover();
+        }}
+      />
+      <DialogConfirmarAccion
+        open={confirmarAccion === 'anular'}
+        titulo={`Anular el lote #${lote?.id ?? ''}`}
+        mensaje="El lote queda anulado: ya no se puede modificar, validar ni promover. Esta acción no se puede deshacer."
+        textoConfirmar="Anular"
+        color="error"
+        onCancelar={() => setConfirmarAccion(null)}
+        onConfirmar={() => {
+          setConfirmarAccion(null);
+          handleAnular();
+        }}
+      />
 
       {/* ── Step 4: Transmisión a la SFC ── */}
       {canTransmitir && (
@@ -438,6 +544,7 @@ export default function CargaArchivos() {
           transmitiendo={transmitiendo}
           consultandoTxId={consultandoTxId}
           isBusy={isBusy}
+          soloLectura={!canWrite}
           onDescargarAvro={handleDescargarAvro}
           onTransmitir={handleTransmitir}
           onConsultarEstado={handleConsultarEstado}
@@ -449,7 +556,15 @@ export default function CargaArchivos() {
 
       {/* ── Error display ── */}
       {errores.length > 0 && (
-        <Alert severity="error" onClose={() => setErrores([])}>
+        <Alert
+          severity="error"
+          onClose={() => { setErrores([]); setLoteExistente(null); }}
+          action={loteExistente !== null && (
+            <Button color="inherit" size="small" onClick={() => navigate(`/app/carga-archivos/${loteExistente}`)}>
+              Abrir lote #{loteExistente}
+            </Button>
+          )}
+        >
           <ul style={{ margin: 0, paddingLeft: 16 }}>
             {errores.map((e, i) => <li key={i}>{e}</li>)}
           </ul>

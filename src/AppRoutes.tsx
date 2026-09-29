@@ -207,7 +207,8 @@ export default function AppRoutes() {
             </RequirePermission>
           }
         />
-        <Route path="/app/carga-archivos" element={<CargaArchivos />} />
+        {/* Sin :id crea un lote; con :id abre uno. Una sola ruta para no remontar al crear. */}
+        <Route path="/app/carga-archivos/:id?" element={<CargaArchivos />} />
         <Route
           path="/app/plantillas-carga"
           element={

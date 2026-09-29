@@ -38,6 +38,12 @@ export default function ResumenLote({ lote }: { lote: LoteResumen }) {
             </Typography>
           </Grid>
         )}
+        {lote.observaciones && (
+          <Grid size={12}>
+            <Typography variant="caption" color="text.secondary">Observaciones</Typography>
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{lote.observaciones}</Typography>
+          </Grid>
+        )}
       </Grid>
     </>
   );

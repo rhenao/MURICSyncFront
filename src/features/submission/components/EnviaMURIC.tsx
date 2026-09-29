@@ -31,8 +31,8 @@ import { useEntidades } from "../../../hooks/useEntidades";
 interface LoteResponse {
   id: number;
   fechaCorte: string;
-  tipoEntidad: number;
-  codigoEntidad: number;
+  universalidadCodigo: number;
+  universalidadDescripcion: string | null;
   estado: string;
   fechaCreacion: string;
   usuarioCreador: string;
@@ -66,7 +66,7 @@ const getLastDayOfPreviousMonth = (): string => {
 
 export default function EnviaMURIC() {
   const [fechaCorte, setFechaCorte] = useState(getLastDayOfPreviousMonth);
-  const [codigoEntidad, setCodigoEntidad] = useState("");
+  const [universalidadCodigo, setUniversalidadCodigo] = useState("");
 
   const [lotes, setLotes] = useState<LoteResponse[]>([]);
   const [buscando, setBuscando] = useState(false);
@@ -109,7 +109,7 @@ export default function EnviaMURIC() {
     try {
       const params: Record<string, string> = { estado: "Promovido" };
       if (fechaCorte) params.fechaCorte = fechaCorte;
-      if (codigoEntidad) params.codigoEntidad = codigoEntidad;
+      if (universalidadCodigo) params.universalidadCodigo = universalidadCodigo;
       const { data } = await axiosSecurityAPIClient.get<LoteResponse[]>("/cargas", { params });
       setLotes(data);
       setBuscado(true);
@@ -159,9 +159,9 @@ export default function EnviaMURIC() {
             <FormControl fullWidth disabled={cargandoUniv || buscando}>
               <InputLabel>Universalidad (opcional)</InputLabel>
               <Select
-                value={codigoEntidad}
+                value={universalidadCodigo}
                 label="Universalidad (opcional)"
-                onChange={(e) => setCodigoEntidad(e.target.value)}
+                onChange={(e) => setUniversalidadCodigo(e.target.value)}
               >
                 <MenuItem value="">
                   <em>Todas</em>
@@ -225,8 +225,7 @@ export default function EnviaMURIC() {
                   <TableRow>
                     <TableCell>ID Lote</TableCell>
                     <TableCell>Fecha corte</TableCell>
-                    <TableCell>Entidad</TableCell>
-                    <TableCell>Tipo</TableCell>
+                    <TableCell>Universalidad</TableCell>
                     <TableCell>Promovido por</TableCell>
                     <TableCell>Fecha promoción</TableCell>
                     <TableCell align="center">Acción</TableCell>
@@ -244,8 +243,9 @@ export default function EnviaMURIC() {
                         />
                       </TableCell>
                       <TableCell>{lote.fechaCorte}</TableCell>
-                      <TableCell>{lote.codigoEntidad}</TableCell>
-                      <TableCell>{lote.tipoEntidad}</TableCell>
+                      <TableCell>
+                        {lote.universalidadCodigo} — {lote.universalidadDescripcion ?? ""}
+                      </TableCell>
                       <TableCell>
                         {lote.usuarioPromotor ?? lote.usuarioCreador}
                       </TableCell>

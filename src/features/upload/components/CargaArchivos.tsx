@@ -55,8 +55,8 @@ import PlantillaService from '../services/PlantillaService';
 interface LoteDetalle {
   id: number;
   fechaCorte: string;
-  tipoEntidad: number;
-  codigoEntidad: number;
+  universalidadCodigo: number;
+  universalidadDescripcion: string | null;
   estado: string;
   fechaCreacion: string;
   usuarioCreador: string;
@@ -103,8 +103,6 @@ interface TransmitirResponse {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TIPO_ENTIDAD_DEFAULT = 1;
-
 const INSUMOS = [
   { enum: 'Credito',    codigo: '001-001', label: 'Información general de créditos' },
   { enum: 'Atributo',   codigo: '001-002', label: 'Atributos del crédito y deudor' },
@@ -147,8 +145,8 @@ const getLastDayOfPreviousMonth = (): string => {
 export default function CargaArchivos() {
   // Step 1 — lote creation form
   const [fechaCorte, setFechaCorte]     = useState(getLastDayOfPreviousMonth);
-  const [codigoEntidad, setCodigoEntidad] = useState('');
-  const [tipoEntidad, setTipoEntidad]   = useState(TIPO_ENTIDAD_DEFAULT);
+  // Tipo y código de la entidad reportante no los elige el usuario: son los de Titularice (backend).
+  const [universalidadCodigo, setUniversalidadCodigo] = useState('');
 
   // Lote state
   const [lote, setLote]         = useState<LoteDetalle | null>(null);
@@ -259,11 +257,9 @@ export default function CargaArchivos() {
     setLoading(true);
     setErrores([]);
     try {
-      const codEntidad = parseInt(codigoEntidad);
       const { data } = await axiosSecurityAPIClient.post<LoteDetalle>('/cargas', {
         fechaCorte,
-        tipoEntidad,
-        codigoEntidad: codEntidad,
+        universalidadCodigo: parseInt(universalidadCodigo),
       });
       setLote(data);
       setSnackMsg(`Lote #${data.id} creado exitosamente.`);
@@ -477,7 +473,7 @@ export default function CargaArchivos() {
     setPlantillaIds({ Credito: '', Atributo: '', Movimiento: '', Todos: '' });
     setConfirmarTodos(null);
     setErrores([]);
-    setCodigoEntidad('');
+    setUniversalidadCodigo('');
     setFechaCorte(getLastDayOfPreviousMonth());
   };
 
@@ -543,9 +539,9 @@ export default function CargaArchivos() {
                 <FormControl fullWidth disabled={cargandoUniv || loading}>
                   <InputLabel>Universalidad</InputLabel>
                   <Select
-                    value={codigoEntidad}
+                    value={universalidadCodigo}
                     label="Universalidad"
-                    onChange={e => setCodigoEntidad(e.target.value)}
+                    onChange={e => setUniversalidadCodigo(e.target.value)}
                   >
                     {universalidades.map(u => (
                       <MenuItem key={u.codigo} value={u.codigo}>
@@ -555,22 +551,12 @@ export default function CargaArchivos() {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid size={1.5}>
-                <TextField
-                  label="Tipo entidad"
-                  type="number"
-                  fullWidth
-                  value={tipoEntidad}
-                  onChange={e => setTipoEntidad(Number(e.target.value))}
-                  slotProps={{ htmlInput: { min: 1 } }}
-                />
-              </Grid>
               <Grid size={2}>
                 <Button
                   variant="contained"
                   size="large"
                   onClick={handleCrearLote}
-                  disabled={!fechaCorte || !codigoEntidad || loading}
+                  disabled={!fechaCorte || !universalidadCodigo || loading}
                 >
                   Crear lote
                 </Button>
@@ -587,13 +573,11 @@ export default function CargaArchivos() {
                 <Typography variant="caption" color="text.secondary">Fecha de corte</Typography>
                 <Typography variant="body2">{lote.fechaCorte}</Typography>
               </Grid>
-              <Grid size={1.5}>
-                <Typography variant="caption" color="text.secondary">Tipo entidad</Typography>
-                <Typography variant="body2">{lote.tipoEntidad}</Typography>
-              </Grid>
-              <Grid size={1.5}>
-                <Typography variant="caption" color="text.secondary">Código entidad</Typography>
-                <Typography variant="body2">{lote.codigoEntidad}</Typography>
+              <Grid size={3}>
+                <Typography variant="caption" color="text.secondary">Universalidad</Typography>
+                <Typography variant="body2">
+                  {lote.universalidadCodigo} — {lote.universalidadDescripcion ?? ''}
+                </Typography>
               </Grid>
               <Grid size={2}>
                 <Typography variant="caption" color="text.secondary">Creado por</Typography>

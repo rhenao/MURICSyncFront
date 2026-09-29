@@ -28,8 +28,8 @@ import { useEntidades } from "../../../hooks/useEntidades";
 interface LoteResponse {
   id: number;
   fechaCorte: string;
-  tipoEntidad: number;
-  codigoEntidad: number;
+  universalidadCodigo: number;
+  universalidadDescripcion: string | null;
   estado: string;
   fechaCreacion: string;
   usuarioCreador: string;
@@ -66,7 +66,7 @@ const ESTADO_COLOR: Record<
 
 export default function ConsultasMURIC() {
   const [fechaCorte, setFechaCorte] = useState("");
-  const [codigoEntidad, setCodigoEntidad] = useState("");
+  const [universalidadCodigo, setUniversalidadCodigo] = useState("");
   const [estado, setEstado] = useState("");
 
   const [lotes, setLotes] = useState<LoteDetalleResponse[]>([]);
@@ -95,7 +95,7 @@ export default function ConsultasMURIC() {
     try {
       const params: Record<string, string> = {};
       if (fechaCorte) params.fechaCorte = fechaCorte;
-      if (codigoEntidad) params.codigoEntidad = codigoEntidad;
+      if (universalidadCodigo) params.universalidadCodigo = universalidadCodigo;
       if (estado) params.estado = estado;
 
       const { data: lista } = await axiosSecurityAPIClient.get<LoteResponse[]>(
@@ -156,9 +156,9 @@ export default function ConsultasMURIC() {
             <FormControl fullWidth disabled={cargandoUniv || cargando}>
               <InputLabel>Universalidad</InputLabel>
               <Select
-                value={codigoEntidad}
+                value={universalidadCodigo}
                 label="Universalidad"
-                onChange={(e) => setCodigoEntidad(e.target.value)}
+                onChange={(e) => setUniversalidadCodigo(e.target.value)}
               >
                 <MenuItem value="">
                   <em>Todas</em>
@@ -234,7 +234,7 @@ export default function ConsultasMURIC() {
                   <TableRow>
                     <TableCell>ID</TableCell>
                     <TableCell>Fecha corte</TableCell>
-                    <TableCell>Entidad</TableCell>
+                    <TableCell>Universalidad</TableCell>
                     <TableCell>Estado</TableCell>
                     <TableCell align="right">Créditos</TableCell>
                     <TableCell align="right">Atributos</TableCell>
@@ -255,7 +255,9 @@ export default function ConsultasMURIC() {
                         />
                       </TableCell>
                       <TableCell>{lote.fechaCorte}</TableCell>
-                      <TableCell>{lote.codigoEntidad}</TableCell>
+                      <TableCell>
+                        {lote.universalidadCodigo} — {lote.universalidadDescripcion ?? ""}
+                      </TableCell>
                       <TableCell>
                         <Chip
                           label={lote.estado}

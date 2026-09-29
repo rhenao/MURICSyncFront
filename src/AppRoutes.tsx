@@ -38,7 +38,6 @@ import ListRoles from "./features/security/components/ListRoles";
 import ListPermissions from "./features/security/components/ListPermissions";
 import PasswordChange from "./features/security/components/PasswordChange.tsx";
 import CargaArchivos from "./features/upload/components/CargaArchivos.tsx";
-import ConfigMapeoCarga from "./features/upload/components/ConfigMapeoCarga";
 import ListPlantillas from "./features/upload/components/ListPlantillas";
 import ListLotes from "./features/upload/components/ListLotes";
 import EnviaMURIC from "./features/submission/components/EnviaMURIC";
@@ -46,7 +45,6 @@ import RequireAuth from "./features/auth/components/RequireAuth";
 import RequireRole from "./features/auth/components/RequireRole";
 import RequirePermission from "./features/auth/components/RequirePermission";
 import ListUniversalidades from "./features/param/components/ListUniversalidades.tsx";
-import ConsultasMURIC from "./features/queries/components/ConsultasMURIC";
 import ReporteUsuarios from "./features/security/components/ReporteUsuarios";
 import FormConfigSeguridad from "./features/security/components/FormConfigSeguridad";
 import AuditLogPage from "./features/audit/components/AuditLogPage";
@@ -208,7 +206,14 @@ export default function AppRoutes() {
           }
         />
         {/* Sin :id crea un lote; con :id abre uno. Una sola ruta para no remontar al crear. */}
-        <Route path="/app/carga-archivos/:id?" element={<CargaArchivos />} />
+        <Route
+          path="/app/carga-archivos/:id?"
+          element={
+            <RequirePermission requiredPermissions={["cargas.read"]}>
+              <CargaArchivos />
+            </RequirePermission>
+          }
+        />
         <Route
           path="/app/plantillas-carga"
           element={
@@ -217,8 +222,16 @@ export default function AppRoutes() {
             </RequirePermission>
           }
         />
-        <Route path="/app/envio-muric" element={<EnviaMURIC />} />
-        <Route path="/app/consultas-muric" element={<ConsultasMURIC />} />
+        <Route
+          path="/app/envio-muric"
+          element={
+            <RequirePermission requiredPermissions={["cargas.write"]}>
+              <EnviaMURIC />
+            </RequirePermission>
+          }
+        />
+        {/* Consultas MURIC se retiró (decisión L2): su lista de lotes es Lotes de carga. */}
+        <Route path="/app/consultas-muric" element={<Navigate to="/app/lotes-carga" replace />} />
         <Route
           path="/app/reporte-usuarios"
           element={
@@ -244,7 +257,6 @@ export default function AppRoutes() {
           }
         />
         <Route path="/app/forbidden" element={<Forbidden />} />
-        <Route path="/config-mapeo-carga" element={<ConfigMapeoCarga />} />
       </Route>
 
       {/* Catch all - redirect to login */}

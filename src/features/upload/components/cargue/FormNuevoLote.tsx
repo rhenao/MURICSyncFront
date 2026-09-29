@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  Alert,
   Button,
   FormControl,
   InputLabel,
@@ -10,6 +11,7 @@ import {
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { useEntidades } from '../../../../hooks/useEntidades';
+import useAuth from '../../../auth/hooks/useAuth';
 
 interface UniversalidadOData {
   Codigo?: string | number;
@@ -36,7 +38,12 @@ export default function FormNuevoLote({ loading, onCrear }: FormNuevoLoteProps) 
   const [universalidadCodigo, setUniversalidadCodigo] = useState('');
   const [observaciones, setObservaciones] = useState('');
 
-  const { entidades: uRaw, cargando: cargandoUniv } = useEntidades<UniversalidadOData>('/Universalidades');
+  const { hasPermission } = useAuth();
+  // Sin params.read no se consulta: un 403 del cliente OData cierra la sesión.
+  const puedeVerUniversalidades = hasPermission('params.read');
+  const { entidades: uRaw, cargando: cargandoUniv } = useEntidades<UniversalidadOData>(
+    '/Universalidades', { enabled: puedeVerUniversalidades }
+  );
   const universalidades = useMemo(() =>
     (uRaw ?? [])
       .filter(u => String(u.Estado ?? '').toUpperCase() === 'A')
@@ -50,6 +57,11 @@ export default function FormNuevoLote({ loading, onCrear }: FormNuevoLoteProps) 
       <Typography variant="subtitle1" fontWeight={600} mb={2}>
         1. Configuración del lote
       </Typography>
+      {!puedeVerUniversalidades && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Para elegir la universalidad se necesita el permiso de consulta de tablas básicas (params.read).
+        </Alert>
+      )}
       <Grid container spacing={2} alignItems="flex-end">
         <Grid size={2}>
           <TextField
@@ -62,7 +74,7 @@ export default function FormNuevoLote({ loading, onCrear }: FormNuevoLoteProps) 
           />
         </Grid>
         <Grid size={4}>
-          <FormControl fullWidth disabled={cargandoUniv || loading}>
+          <FormControl fullWidth disabled={!puedeVerUniversalidades || cargandoUniv || loading}>
             <InputLabel>Universalidad</InputLabel>
             <Select
               value={universalidadCodigo}

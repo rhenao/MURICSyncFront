@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import axiosSecurityAPIClient from '../../../api/axiosSecurityAPIClient';
+import { fetchConToken } from '../../../api/fetchConToken';
 import {
   insumosGeneradosTodos,
   type InsumoMURIC,
@@ -251,15 +252,7 @@ export default function CargaArchivos() {
       fd.append('archivo', archivos[insumo]!);
       if (plantillaIds[insumo] !== '') fd.append('plantillaId', String(plantillaIds[insumo]));
 
-      const token = localStorage.getItem('token');
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL_SECURITY}/cargas/${lote.id}/archivos`,
-        {
-          method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          body: fd,
-        }
-      );
+      const res = await fetchConToken(`/cargas/${lote.id}/archivos`, { method: 'POST', body: fd });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as Record<string, unknown>;
@@ -336,11 +329,7 @@ export default function CargaArchivos() {
     setDescargandoAvro(true);
     setErrores([]);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL_SECURITY}/cargas/${lote.id}/avro`,
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-      );
+      const res = await fetchConToken(`/cargas/${lote.id}/avro`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as Record<string, unknown>;
         throw new Error(String(body?.message ?? `Error ${res.status}`));

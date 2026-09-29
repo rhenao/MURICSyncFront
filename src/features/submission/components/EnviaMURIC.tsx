@@ -27,6 +27,7 @@ import SendIcon from "@mui/icons-material/Send";
 import SearchIcon from "@mui/icons-material/Search";
 import axiosSecurityAPIClient from "../../../api/axiosSecurityAPIClient";
 import { useEntidades } from "../../../hooks/useEntidades";
+import useAuth from "../../auth/hooks/useAuth";
 
 interface LoteResponse {
   id: number;
@@ -79,8 +80,11 @@ export default function EnviaMURIC() {
   const [snackMsg, setSnackMsg] = useState<string | null>(null);
   const [buscado, setBuscado] = useState(false);
 
+  const { hasPermission } = useAuth();
+  // Sin params.read no se consulta: un 403 del cliente OData cierra la sesión. El filtro queda en "Todas".
+  const puedeVerUniversalidades = hasPermission("params.read");
   const { entidades: uRaw, cargando: cargandoUniv } =
-    useEntidades<UniversalidadOData>("/Universalidades");
+    useEntidades<UniversalidadOData>("/Universalidades", { enabled: puedeVerUniversalidades });
   const universalidades = useMemo(
     () =>
       (uRaw ?? [])
@@ -156,7 +160,7 @@ export default function EnviaMURIC() {
             />
           </Grid>
           <Grid size={4}>
-            <FormControl fullWidth disabled={cargandoUniv || buscando}>
+            <FormControl fullWidth disabled={!puedeVerUniversalidades || cargandoUniv || buscando}>
               <InputLabel>Universalidad (opcional)</InputLabel>
               <Select
                 value={universalidadCodigo}

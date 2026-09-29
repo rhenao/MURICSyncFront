@@ -13,7 +13,6 @@ import {
   FileUpload,
   Summarize,
   SendAndArchive,
-  AccountTree,
   CloudUpload,
   FileCopy,
   ViewList,
@@ -65,16 +64,16 @@ export function Menu() {
   const hasRole = (...r: string[]) => r.some((rol) => roles.includes(rol));
 
   const canAdmin = hasRole("ADMIN", "OPERADOR", "CONSULTA");
-  const canCargue = hasRole("ADMIN", "OPERADOR");
+  // Cargue, envío y consultas de lotes van por permiso, igual que sus rutas en AppRoutes.
+  const canCargue = hasPermission("cargas.write");
   const canVerPlantillas = hasPermission("cargas.read");
   const canVerLotes = hasPermission("cargas.read");
-  const canEnvio = hasRole("ADMIN", "OPERADOR");
-  const canConsultas = hasRole("ADMIN", "OPERADOR", "CONSULTA");
+  const canEnvio = hasPermission("cargas.write");
+  const canConsultas = hasPermission("cargas.read");
   const canAdminUsuarios = hasRole("ADMIN", "SEGURIDAD");
   const canCambioContrasena = hasRole("ADMIN", "OPERADOR", "SEGURIDAD", "CONSULTA");
   const canGestionRoles = hasPermission("roles.manage");
  
-  console.log("Permisos del usuario:", { canAdmin, canCargue, canEnvio, canConsultas, canAdminUsuarios, canCambioContrasena, canGestionRoles }); 
 
   const canReporteUsuarios = hasPermission("usuarios.read");
   const canConfigSeguridad = hasPermission("seguridad.manage");
@@ -388,14 +387,6 @@ export function Menu() {
               <ListItemText primary="Cargue de archivos" />
             </ListItemButton>
             )}
-            <ListItemButton
-              component={NavLink}
-              to="/config-mapeo-carga"
-              sx={{ pl: 6, py: 0.1, display: "none" }}
-            >
-              <ListItemIcon><AccountTree fontSize="small" color="primary" /></ListItemIcon>
-              <ListItemText primary="Configurar mapeo de carga" />
-            </ListItemButton>
           </List>
         </Collapse>
         </>
@@ -448,11 +439,11 @@ export function Menu() {
             </ListItemButton> */}
             <ListItemButton
               component={NavLink}
-              to="/app/consultas-muric"
+              to="/app/lotes-carga"
               sx={{ pl: 6, py: 0.1 }}
             >
-              <ListItemIcon><Summarize fontSize="small" color="primary" /></ListItemIcon>
-              <ListItemText primary="Consultas MURIC" />
+              <ListItemIcon><ViewList fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Lotes de carga" />
             </ListItemButton>
           </List>
         </Collapse>

@@ -16,7 +16,7 @@ interface QuickAction {
 }
 
 export default function LandingPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const roles = user?.roles ?? [];
 
   const hasRole = (...allowedRoles: string[]) =>
@@ -24,12 +24,12 @@ export default function LandingPage() {
 
   const quickActions: QuickAction[] = [];
 
-  if (hasRole("ADMIN", "OPERADOR")) {
+  if (hasPermission("cargas.write")) {
     quickActions.push({ label: "Cargue de archivos", to: "/app/carga-archivos" });
   }
 
-  if (hasRole("ADMIN", "OPERADOR", "CONSULTA")) {
-    quickActions.push({ label: "Consultas", to: "/app/archivos-cargados" });
+  if (hasPermission("cargas.read")) {
+    quickActions.push({ label: "Lotes de carga", to: "/app/lotes-carga" });
   }
 
   if (hasRole("ADMIN", "SEGURIDAD")) {

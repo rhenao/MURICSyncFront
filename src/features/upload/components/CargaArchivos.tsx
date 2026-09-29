@@ -1,147 +1,44 @@
-import { useMemo, useRef, useState, type RefObject } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Box,
-  Button,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Divider,
-  FormControl,
   IconButton,
-  InputLabel,
   LinearProgress,
-  MenuItem,
   Paper,
-  Select,
   Snackbar,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
-import Grid from '@mui/material/Grid';
-import RestartAltIcon        from '@mui/icons-material/RestartAlt';
-import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import ErrorOutlineIcon      from '@mui/icons-material/ErrorOutline';
-import PublishIcon           from '@mui/icons-material/Publish';
-import BlockIcon             from '@mui/icons-material/Block';
-import VerifiedIcon          from '@mui/icons-material/Verified';
-import FileDownloadIcon      from '@mui/icons-material/FileDownload';
-import SendIcon              from '@mui/icons-material/Send';
-import RefreshIcon           from '@mui/icons-material/Refresh';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import axiosSecurityAPIClient from '../../../api/axiosSecurityAPIClient';
-import { useEntidades }      from '../../../hooks/useEntidades';
 import {
-  INSUMO_LABELS_CORTO,
   insumosGeneradosTodos,
   type InsumoMURIC,
   type PlantillaResumen,
 } from '../models/Plantilla.model';
 import PlantillaService from '../services/PlantillaService';
-import { ESTADO_LOTE_COLOR, ESTADOS_ACTIVOS } from '../models/Lote.model';
+import { ESTADO_LOTE_COLOR, ESTADOS_ACTIVOS, type LoteResumen } from '../models/Lote.model';
+import {
+  INSUMOS,
+  type HistorialArchivo,
+  type InsumoEnum,
+  type TransmisionSfc,
+  type TransmitirResponse,
+} from './cargue/tiposCargue';
+import FormNuevoLote from './cargue/FormNuevoLote';
+import ResumenLote from './cargue/ResumenLote';
+import PanelArchivos from './cargue/PanelArchivos';
+import PanelAcciones from './cargue/PanelAcciones';
+import PanelTransmision from './cargue/PanelTransmision';
+import HistorialArchivos from './cargue/HistorialArchivos';
 
-// ─── API response types ───────────────────────────────────────────────────────
-
-interface LoteDetalle {
-  id: number;
-  fechaCorte: string;
-  universalidadCodigo: number;
-  universalidadDescripcion: string | null;
-  estado: string;
-  fechaCreacion: string;
-  usuarioCreador: string;
-  conteos: { creditos: number; atributos: number; movimientos: number } | null;
-  resumenErrores: { total: number; errores: number; advertencias: number } | null;
-}
-
-interface HistorialArchivo {
-  id: number;
-  insumo: string;
-  nombreArchivo: string;
-  tamanoBytes: number;
-  filasParseadas: number | null;
-  resultado: string;
-  mensajeResultado: string | null;
-  fechaCarga: string;
-  usuarioCarga: string;
-}
-
-interface TransmisionSfc {
-  id: number;
-  loteId: number;
-  nombreArchivo: string;
-  hashSha256: string;
-  idTransmisionSfc: string;
-  estado: string;
-  codigoEstadoSfc: string | null;
-  mensajeEstado: string | null;
-  fechaTransmision: string;
-  usuarioTransmisor: string;
-  fechaUltimaConsulta: string | null;
-  totalCreditos: number;
-  totalDemograficos: number;
-  totalMovimientos: number;
-}
-
-interface TransmitirResponse {
-  transmisionId: number;
-  idTransmisionSfc: string;
-  estado: string;
-  nombreArchivo: string;
-  hashSha256: string;
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const INSUMOS = [
-  { enum: 'Credito',    codigo: '001-001', label: 'Información general de créditos' },
-  { enum: 'Atributo',   codigo: '001-002', label: 'Atributos del crédito y deudor' },
-  { enum: 'Movimiento', codigo: '001-003', label: 'Movimientos de cartera' },
-  // Un archivo con campos de los tres insumos; solo con plantilla (ADR 0009 del backend).
-  { enum: 'Todos',      codigo: '001-999', label: 'Todos (un solo archivo)' },
-] as const;
-
-type InsumoEnum = 'Credito' | 'Atributo' | 'Movimiento' | 'Todos';
-
-const ESTADO_TX_COLOR: Record<string, 'default' | 'warning' | 'success' | 'error'> = {
-  Enviado:   'warning',
-  Aprobado:  'success',
-  Rechazado: 'error',
-  Error:     'error',
-};
-
-interface UniversalidadOData {
-  Codigo?: string | number;
-  Descripcion?: string;
-  Estado?: string;
-}
-
-const getLastDayOfPreviousMonth = (): string => {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
-};
-
-// ─── Component ────────────────────────────────────────────────────────────────
-
+// Orquesta el ciclo de vida del lote: crear → subir → validar → promover → AVRO / transmitir, o anular.
+// El estado y las llamadas al API viven aquí; los paneles de ./cargue solo pintan.
 export default function CargaArchivos() {
-  // Step 1 — lote creation form
-  const [fechaCorte, setFechaCorte]     = useState(getLastDayOfPreviousMonth);
-  // Tipo y código de la entidad reportante no los elige el usuario: son los de Titularice (backend).
-  const [universalidadCodigo, setUniversalidadCodigo] = useState('');
-
   // Lote state
-  const [lote, setLote]         = useState<LoteDetalle | null>(null);
+  const [lote, setLote]         = useState<LoteResumen | null>(null);
   const [historial, setHistorial] = useState<HistorialArchivo[]>([]);
   const [transmisiones, setTransmisiones] = useState<TransmisionSfc[]>([]);
 
@@ -149,13 +46,6 @@ export default function CargaArchivos() {
   const [archivos, setArchivos] = useState<Record<InsumoEnum, File | null>>({
     Credito: null, Atributo: null, Movimiento: null, Todos: null,
   });
-  const refCredito    = useRef<HTMLInputElement>(null);
-  const refAtributo   = useRef<HTMLInputElement>(null);
-  const refMovimiento = useRef<HTMLInputElement>(null);
-  const refTodos      = useRef<HTMLInputElement>(null);
-  const fileRefs: Record<InsumoEnum, RefObject<HTMLInputElement | null>> = {
-    Credito: refCredito, Atributo: refAtributo, Movimiento: refMovimiento, Todos: refTodos,
-  };
 
   // Plantilla selection (optional, one per insumo)
   const [plantillasMap, setPlantillasMap] = useState<Record<InsumoEnum, PlantillaResumen[]>>({
@@ -176,16 +66,6 @@ export default function CargaArchivos() {
   const [consultandoTxId, setConsultandoTxId] = useState<number | null>(null);
   const [errores, setErrores]               = useState<string[]>([]);
   const [snackMsg, setSnackMsg]             = useState<string | null>(null);
-
-  // Universalidades
-  const { entidades: uRaw, cargando: cargandoUniv } = useEntidades<UniversalidadOData>('/Universalidades');
-  const universalidades = useMemo(() =>
-    (uRaw ?? [])
-      .filter(u => String(u.Estado ?? '').toUpperCase() === 'A')
-      .map(u => ({ codigo: String(u.Codigo ?? ''), descripcion: String(u.Descripcion ?? '') }))
-      .sort((a, b) => a.codigo.localeCompare(b.codigo)),
-    [uRaw]
-  );
 
   // ─── API helpers ─────────────────────────────────────────────────────────────
 
@@ -223,7 +103,7 @@ export default function CargaArchivos() {
 
   const refrescarLote = async (id: number) => {
     const [loteRes, historialRes] = await Promise.all([
-      axiosSecurityAPIClient.get<LoteDetalle>(`/cargas/${id}`),
+      axiosSecurityAPIClient.get<LoteResumen>(`/cargas/${id}`),
       axiosSecurityAPIClient.get<HistorialArchivo[]>(`/cargas/${id}/historial`),
     ]);
     setLote(loteRes.data);
@@ -245,13 +125,13 @@ export default function CargaArchivos() {
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
 
-  const handleCrearLote = async () => {
+  const handleCrearLote = async (fechaCorte: string, universalidadCodigo: number) => {
     setLoading(true);
     setErrores([]);
     try {
-      const { data } = await axiosSecurityAPIClient.post<LoteDetalle>('/cargas', {
+      const { data } = await axiosSecurityAPIClient.post<LoteResumen>('/cargas', {
         fechaCorte,
-        universalidadCodigo: parseInt(universalidadCodigo),
+        universalidadCodigo,
       });
       setLote(data);
       setSnackMsg(`Lote #${data.id} creado exitosamente.`);
@@ -465,8 +345,6 @@ export default function CargaArchivos() {
     setPlantillaIds({ Credito: '', Atributo: '', Movimiento: '', Todos: '' });
     setConfirmarTodos(null);
     setErrores([]);
-    setUniversalidadCodigo('');
-    setFechaCorte(getLastDayOfPreviousMonth());
   };
 
   // ─── Derived state ────────────────────────────────────────────────────────────
@@ -511,353 +389,59 @@ export default function CargaArchivos() {
 
       {/* ── Step 1: Configuración del lote / resumen ── */}
       <Paper sx={{ p: 2 }}>
-        {!lote ? (
-          <>
-            <Typography variant="subtitle1" fontWeight={600} mb={2}>
-              1. Configuración del lote
-            </Typography>
-            <Grid container spacing={2} alignItems="flex-end">
-              <Grid size={2}>
-                <TextField
-                  label="Fecha de corte"
-                  type="date"
-                  fullWidth
-                  value={fechaCorte}
-                  onChange={e => setFechaCorte(e.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-              <Grid size={4}>
-                <FormControl fullWidth disabled={cargandoUniv || loading}>
-                  <InputLabel>Universalidad</InputLabel>
-                  <Select
-                    value={universalidadCodigo}
-                    label="Universalidad"
-                    onChange={e => setUniversalidadCodigo(e.target.value)}
-                  >
-                    {universalidades.map(u => (
-                      <MenuItem key={u.codigo} value={u.codigo}>
-                        {u.codigo} — {u.descripcion}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid size={2}>
-                <Button
-                  variant="contained"
-                  size="large"
-                  onClick={handleCrearLote}
-                  disabled={!fechaCorte || !universalidadCodigo || loading}
-                >
-                  Crear lote
-                </Button>
-              </Grid>
-            </Grid>
-          </>
-        ) : (
-          <>
-            <Typography variant="subtitle1" fontWeight={600} mb={1.5}>
-              Información del lote
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid size={2}>
-                <Typography variant="caption" color="text.secondary">Fecha de corte</Typography>
-                <Typography variant="body2">{lote.fechaCorte}</Typography>
-              </Grid>
-              <Grid size={3}>
-                <Typography variant="caption" color="text.secondary">Universalidad</Typography>
-                <Typography variant="body2">
-                  {lote.universalidadCodigo} — {lote.universalidadDescripcion ?? ''}
-                </Typography>
-              </Grid>
-              <Grid size={2}>
-                <Typography variant="caption" color="text.secondary">Creado por</Typography>
-                <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>{lote.usuarioCreador}</Typography>
-              </Grid>
-              <Grid size={3}>
-                <Typography variant="caption" color="text.secondary">Filas parseadas (001 / 002 / 003)</Typography>
-                <Typography variant="body2">
-                  {lote.conteos?.creditos ?? 0} / {lote.conteos?.atributos ?? 0} / {lote.conteos?.movimientos ?? 0}
-                </Typography>
-              </Grid>
-              {(lote.resumenErrores?.total ?? 0) > 0 && (
-                <Grid size={2}>
-                  <Typography variant="caption" color="text.secondary">Errores / Advertencias</Typography>
-                  <Typography variant="body2" color="error.main">
-                    {lote.resumenErrores?.errores} / {lote.resumenErrores?.advertencias}
-                  </Typography>
-                </Grid>
-              )}
-            </Grid>
-          </>
-        )}
+        {!lote
+          ? <FormNuevoLote loading={loading} onCrear={handleCrearLote} />
+          : <ResumenLote lote={lote} />}
       </Paper>
 
       {/* ── Step 2: Carga de archivos ── */}
       {lote && (
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="subtitle1" fontWeight={600} mb={1.5}>
-            2. Carga de archivos
-          </Typography>
-          <Stack spacing={2}>
-            {INSUMOS.map(ins => {
-              const insumo   = ins.enum as InsumoEnum;
-              const archivo  = archivos[insumo];
-              const subiendo = subiendoInsumo === insumo;
-              const esTodos  = insumo === 'Todos';
-              const yaSubido = !esTodos && historial.some(h => h.insumo === ins.codigo);
-              const plantillas = plantillasMap[insumo];
-              const sinPlantillaObligatoria = esTodos && plantillaIds.Todos === '';
-              return (
-                <Box key={ins.enum}>
-                  {esTodos && (
-                    <Divider sx={{ mb: 1.5 }}>
-                      <Typography variant="caption" color="text.secondary">
-                        o un solo archivo con los tres insumos
-                      </Typography>
-                    </Divider>
-                  )}
-                  <input
-                    ref={fileRefs[insumo]}
-                    type="file"
-                    accept=".csv,.txt,.xlsx,.xls"
-                    style={{ display: 'none' }}
-                    onChange={e => {
-                      const f = e.target.files?.[0] ?? null;
-                      setArchivos(prev => ({ ...prev, [insumo]: f }));
-                      e.target.value = '';
-                    }}
-                  />
-                  <Stack direction="row" spacing={1.5} alignItems="center" mb={0.5}>
-                    <Chip
-                      label={ins.codigo}
-                      size="small"
-                      variant="outlined"
-                      color="primary"
-                      sx={{ minWidth: 72 }}
-                    />
-                    <Typography variant="body2" sx={{ minWidth: 290 }}>{ins.label}</Typography>
-                    {yaSubido && !subiendo && <CheckCircleOutlineIcon color="success" fontSize="small" />}
-                  </Stack>
-                  <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" pl={1}>
-                    <FormControl size="small" sx={{ minWidth: 220 }} disabled={!canUpload || isBusy || cargandoPlantillas}>
-                      <InputLabel id={`plantilla-${insumo}-label`}>
-                        {esTodos ? 'Plantilla (obligatoria)' : 'Plantilla (opcional)'}
-                      </InputLabel>
-                      <Select
-                        labelId={`plantilla-${insumo}-label`}
-                        label={esTodos ? 'Plantilla (obligatoria)' : 'Plantilla (opcional)'}
-                        value={plantillaIds[insumo]}
-                        onChange={e => setPlantillaIds(prev => ({ ...prev, [insumo]: e.target.value as number | '' }))}
-                      >
-                        <MenuItem value=""><em>{esTodos ? 'Elige una plantilla 001-999' : 'Sin plantilla'}</em></MenuItem>
-                        {plantillas.map(p => (
-                          <MenuItem key={p.id} value={p.id}>
-                            {p.nombre}
-                            <Typography component="span" variant="caption" color="text.secondary" ml={0.5}>
-                              ({p.numeroCampos} campos)
-                            </Typography>
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<CloudUploadOutlinedIcon />}
-                      onClick={() => fileRefs[insumo].current?.click()}
-                      disabled={!canUpload || isBusy}
-                    >
-                      Seleccionar archivo
-                    </Button>
-                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: 180 }}>
-                      {archivo ? archivo.name : 'Sin archivo'}
-                    </Typography>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      startIcon={<PublishIcon />}
-                      onClick={() => handleSubirArchivo(insumo)}
-                      disabled={!archivo || !canUpload || isBusy || sinPlantillaObligatoria}
-                    >
-                      {subiendo ? 'Subiendo…' : 'Subir'}
-                    </Button>
-                    {subiendo && <LinearProgress sx={{ width: 80 }} />}
-                  </Stack>
-                </Box>
-              );
-            })}
-          </Stack>
-        </Paper>
+        <PanelArchivos
+          archivos={archivos}
+          plantillasMap={plantillasMap}
+          plantillaIds={plantillaIds}
+          historial={historial}
+          subiendoInsumo={subiendoInsumo}
+          canUpload={canUpload}
+          isBusy={isBusy}
+          cargandoPlantillas={cargandoPlantillas}
+          onArchivo={(insumo, f) => setArchivos(prev => ({ ...prev, [insumo]: f }))}
+          onPlantilla={(insumo, id) => setPlantillaIds(prev => ({ ...prev, [insumo]: id }))}
+          onSubir={handleSubirArchivo}
+          confirmarTodos={confirmarTodos}
+          onCancelarTodos={() => setConfirmarTodos(null)}
+          onConfirmarTodos={() => {
+            setConfirmarTodos(null);
+            subirArchivo('Todos');
+          }}
+        />
       )}
-
-      <Dialog open={confirmarTodos !== null} onClose={() => setConfirmarTodos(null)} maxWidth="xs">
-        <DialogTitle>Reemplazar archivos cargados</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            El archivo 001-999 va a reemplazar lo que ya está cargado en:{' '}
-            <strong>{(confirmarTodos ?? []).map(i => INSUMO_LABELS_CORTO[i]).join(', ')}</strong>.
-            Los datos anteriores de esos insumos se borran. ¿Continuar?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmarTodos(null)}>Cancelar</Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              setConfirmarTodos(null);
-              subirArchivo('Todos');
-            }}
-          >
-            Reemplazar
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* ── Step 3: Validación y promoción ── */}
       {lote && (
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="subtitle1" fontWeight={600} mb={1.5}>
-            3. Validación y promoción
-          </Typography>
-          <Stack direction="row" spacing={1.5} flexWrap="wrap">
-            <Button
-              variant="outlined"
-              startIcon={<VerifiedIcon />}
-              onClick={handleValidar}
-              disabled={!canValidar || isBusy}
-            >
-              Validar lote
-            </Button>
-            <Button
-              variant="contained"
-              color="success"
-              startIcon={<CheckCircleOutlineIcon />}
-              onClick={handlePromover}
-              disabled={!canPromover || isBusy}
-            >
-              Promover a MURIC
-            </Button>
-            <Button
-              variant="outlined"
-              color="error"
-              startIcon={<BlockIcon />}
-              onClick={handleAnular}
-              disabled={!canAnular || isBusy}
-            >
-              Anular lote
-            </Button>
-          </Stack>
-        </Paper>
+        <PanelAcciones
+          canValidar={canValidar}
+          canPromover={canPromover}
+          canAnular={canAnular}
+          isBusy={isBusy}
+          onValidar={handleValidar}
+          onPromover={handlePromover}
+          onAnular={handleAnular}
+        />
       )}
 
       {/* ── Step 4: Transmisión a la SFC ── */}
       {canTransmitir && (
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="subtitle1" fontWeight={600} mb={1.5}>
-            4. Transmisión a la SFC
-          </Typography>
-          <Stack direction="row" spacing={1.5} alignItems="center" mb={transmitiendo ? 1.5 : 0}>
-            <Button
-              variant="outlined"
-              startIcon={<FileDownloadIcon />}
-              onClick={handleDescargarAvro}
-              disabled={isBusy}
-            >
-              {descargandoAvro ? 'Generando…' : 'Descargar AVRO (.avro.p7z)'}
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<SendIcon />}
-              onClick={handleTransmitir}
-              disabled={isBusy}
-            >
-              {transmitiendo ? 'Transmitiendo…' : 'Transmitir a SFC'}
-            </Button>
-          </Stack>
-          {transmitiendo && <LinearProgress sx={{ mt: 1 }} />}
-
-          {/* Historial de transmisiones */}
-          {transmisiones.length > 0 && (
-            <Box mt={2}>
-              <Typography variant="subtitle2" fontWeight={600} mb={1}>
-                Historial de transmisiones
-              </Typography>
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>ID SFC</TableCell>
-                      <TableCell>Archivo</TableCell>
-                      <TableCell>Estado</TableCell>
-                      <TableCell align="center">Cód. SFC</TableCell>
-                      <TableCell align="center">Créditos / Demog. / Mov.</TableCell>
-                      <TableCell>Fecha transmisión</TableCell>
-                      <TableCell>Usuario</TableCell>
-                      <TableCell align="center">Acciones</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {transmisiones.map(tx => (
-                      <TableRow key={tx.id}>
-                        <TableCell>
-                          <Tooltip title={`SHA-256: ${tx.hashSha256}`}>
-                            <Typography variant="body2" fontFamily="monospace">
-                              {tx.idTransmisionSfc}
-                            </Typography>
-                          </Tooltip>
-                        </TableCell>
-                        <TableCell>
-                          <Tooltip title={tx.nombreArchivo}>
-                            <Typography variant="body2" noWrap sx={{ maxWidth: 180 }}>
-                              {tx.nombreArchivo}
-                            </Typography>
-                          </Tooltip>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={tx.estado}
-                            size="small"
-                            color={ESTADO_TX_COLOR[tx.estado] ?? 'default'}
-                          />
-                        </TableCell>
-                        <TableCell align="center">
-                          <Typography variant="body2" color="text.secondary">
-                            {tx.codigoEstadoSfc ?? '—'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Typography variant="body2">
-                            {tx.totalCreditos} / {tx.totalDemograficos} / {tx.totalMovimientos}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(tx.fechaTransmision).toLocaleString('es-CO')}
-                        </TableCell>
-                        <TableCell>{tx.usuarioTransmisor}</TableCell>
-                        <TableCell align="center">
-                          <Tooltip title="Consultar estado en SFC">
-                            <span>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleConsultarEstado(tx.id)}
-                                disabled={consultandoTxId === tx.id || isBusy}
-                              >
-                                <RefreshIcon fontSize="small" />
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
-        </Paper>
+        <PanelTransmision
+          transmisiones={transmisiones}
+          descargandoAvro={descargandoAvro}
+          transmitiendo={transmitiendo}
+          consultandoTxId={consultandoTxId}
+          isBusy={isBusy}
+          onDescargarAvro={handleDescargarAvro}
+          onTransmitir={handleTransmitir}
+          onConsultarEstado={handleConsultarEstado}
+        />
       )}
 
       {/* ── Loading bar ── */}
@@ -873,51 +457,7 @@ export default function CargaArchivos() {
       )}
 
       {/* ── Historial de archivos ── */}
-      {historial.length > 0 && (
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="subtitle1" fontWeight={600} mb={1.5}>
-            Historial de archivos cargados
-          </Typography>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Insumo</TableCell>
-                  <TableCell>Archivo</TableCell>
-                  <TableCell align="right">Filas parseadas</TableCell>
-                  <TableCell>Resultado</TableCell>
-                  <TableCell>Fecha carga</TableCell>
-                  <TableCell>Usuario</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {historial.map(h => (
-                  <TableRow key={h.id}>
-                    <TableCell>
-                      <Chip label={h.insumo} size="small" variant="outlined" color="primary" />
-                    </TableCell>
-                    <TableCell>{h.nombreArchivo}</TableCell>
-                    <TableCell align="right">{h.filasParseadas ?? '—'}</TableCell>
-                    <TableCell>
-                      <Stack direction="row" spacing={0.5} alignItems="center">
-                        {h.resultado === 'Exitoso'
-                          ? <CheckCircleOutlineIcon color="success" fontSize="small" />
-                          : <ErrorOutlineIcon color="error" fontSize="small" />
-                        }
-                        <Typography variant="caption">
-                          {h.mensajeResultado ?? h.resultado}
-                        </Typography>
-                      </Stack>
-                    </TableCell>
-                    <TableCell>{new Date(h.fechaCarga).toLocaleString('es-CO')}</TableCell>
-                    <TableCell>{h.usuarioCarga}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
-      )}
+      {historial.length > 0 && <HistorialArchivos historial={historial} />}
 
       {/* ── Success snackbar ── */}
       <Snackbar

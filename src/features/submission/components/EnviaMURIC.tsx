@@ -28,6 +28,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import axiosSecurityAPIClient from "../../../api/axiosSecurityAPIClient";
 import { useEntidades } from "../../../hooks/useEntidades";
 import useAuth from "../../auth/hooks/useAuth";
+import ChipEntidadReportante from "../../configuracion/components/ChipEntidadReportante";
 
 interface LoteResponse {
   id: number;
@@ -145,9 +146,12 @@ export default function EnviaMURIC() {
     <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
       {/* ── Filtros ── */}
       <Paper sx={{ p: 2 }}>
-        <Typography variant="h6" fontWeight={700} mb={2}>
-          Envío a MURIC
-        </Typography>
+        <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
+          <Typography variant="h6" fontWeight={700}>
+            Envío a MURIC
+          </Typography>
+          <ChipEntidadReportante />
+        </Stack>
         <Grid container spacing={2} alignItems="flex-end">
           <Grid size={2}>
             <TextField

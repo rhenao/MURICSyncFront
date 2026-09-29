@@ -35,6 +35,7 @@ Code is organized under `src/features/<feature>/`:
 - **`param`** — ~30 catalog/reference-data tables (parameter lists for the credit portfolio domain). The SFC catalogs are read-only and use the shared `ListaGeneralConsulta` component. This includes `CatalogoAtributos`, the 40 attributes of insumo 001-002. `Universalidades` (company-owned) is the only table meant to get create/edit (see `docs/prompts/plan-crud-universalidades.md`).
 - **`upload`** — Portfolio load batches (`ListLotes` + `CargaArchivos`: create → upload → validate → promote → transmit) and load templates (`plantillas`).
 - **`home`** — Landing page shown after login.
+- **`configuracion`** — Read-only backend configuration. `ChipEntidadReportante` shows the reporting entity (Titularice, `GET /configuracion/entidad-reportante`, cached once per page load) on *Cargue de archivos* and *Envío MURIC*; the backend refuses to start without `EntidadReportante:CodigoEntidad`.
 
 Shared layout components (`Layout`, `Menu`, `TopBar`, `Logo`, `UserAvatar`) live in `src/components/`.
 
@@ -77,7 +78,7 @@ After adding a new param list component, register its route in `src/AppRoutes.ts
 
 `CargaArchivos` drives the batch (`lote`) lifecycle against the Security API (`/cargas`): create → upload one file per insumo → validate → promote → AVRO download / transmit, or cancel. The **backend** parses the files (ADR 0004). Uploads and the AVRO download go through `fetchConToken`. Plan: `docs/prompts/plan-cargue-archivos.md`.
 
-- **A batch belongs to a universalidad.** It is created with `{ fechaCorte, universalidadCodigo, observaciones }`. The reporting entity's type and code are Titularice's and are never sent by the front (`docs/prompts/plan-entidad-reportante-universalidad.md`, phase B1; phases A, B2 and C–E are pending).
+- **A batch belongs to a universalidad.** It is created with `{ fechaCorte, universalidadCodigo, observaciones }`. The reporting entity's type and code are Titularice's and are never sent by the front (`docs/prompts/plan-entidad-reportante-universalidad.md`, phases A and B1 done; B2 and C–E pending).
 - **One active batch** (`Iniciado`, `Parseado` or `Validado`) per cut-off date and universalidad: creating another returns `409` with `loteIdExistente`, and the error offers "Abrir lote #N". If a `Promovido` batch already exists for that cut-off, creation succeeds and the response carries `advertencia`. There is no `Fallido` batch state (the file history still has `Fallido` rows).
 - **`ListLotes`** (`/app/lotes-carga`, `cargas.read`) lists batches with per-insumo row counts and error summary (`GET /cargas` returns the same shape as the detail). Status chips filter on the backend (`estado` repeated, via `LoteService`); universalidad and cut-off filter client-side from the loaded rows, so the list needs no OData call. States and colors: `Lote.model.ts`.
 - **`CargaArchivos`** lives at `/app/carga-archivos/:id?` (`cargas.read`): no id creates a batch, an id opens it, and after creating it navigates to the batch URL so a page reload keeps it. It only holds state and API calls; the panels are in `components/cargue/`. Without `cargas.write` it is read-only (no form, uploads, validate/promote/cancel or transmit). Promote and cancel ask for confirmation. Files can be uploaded to a `Validado` batch, which goes back to `Parseado`.

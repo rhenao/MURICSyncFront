@@ -36,6 +36,7 @@ import PanelTransmision from './cargue/PanelTransmision';
 import HistorialArchivos from './cargue/HistorialArchivos';
 import DialogConfirmarAccion from './cargue/DialogConfirmarAccion';
 import useAuth from '../../auth/hooks/useAuth';
+import ChipEntidadReportante from '../../configuracion/components/ChipEntidadReportante';
 
 const extractAxiosError = (err: unknown): string => {
   const d = (err as { response?: { data?: unknown } })?.response?.data;
@@ -416,6 +417,7 @@ export default function CargaArchivos() {
             <Typography variant="h6" fontWeight={700}>
               Cargue de archivos MURIC
             </Typography>
+            <ChipEntidadReportante />
             {lote && (
               <Chip label={`Lote #${lote.id}`} size="small" variant="outlined" color="primary" />
             )}

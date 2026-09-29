@@ -16,6 +16,16 @@ const columns: ColumnConfig[] = [
     options: ESTADOS,
     defaultValue: "A",
   },
+  // E9 c: se antepone al id del crédito al cargar, para que dos originadores con el mismo número
+  // no choquen. El backend valida el formato y no deja cambiarlo tras la primera transmisión.
+  {
+    accessorKey: "PrefijoCredito",
+    header: "Prefijo de crédito",
+    size: 170,
+    required: false,
+    maxLength: 20,
+    nullFallback: "—",
+  },
 ];
 
 export default function ListUniversalidades() {
@@ -24,7 +34,7 @@ export default function ListUniversalidades() {
       endpoint="/Universalidades"
       title="Universalidades"
       columns={columns}
-      // R1: no se borra físicamente (hay créditos que la mencionan por texto, sin FK);
+      // R1: no se borra físicamente (lotes y créditos la referencian por FK);
       // la baja es lógica con Estado = "I".
       allowDelete={false}
       filaInactiva={(row) => row["Estado"] === "I"}

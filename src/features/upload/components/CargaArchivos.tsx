@@ -25,14 +25,11 @@ import {
   INSUMOS,
   type HistorialArchivo,
   type InsumoEnum,
-  type TransmisionSfc,
-  type TransmitirResponse,
 } from './cargue/tiposCargue';
 import FormNuevoLote from './cargue/FormNuevoLote';
 import ResumenLote from './cargue/ResumenLote';
 import PanelArchivos from './cargue/PanelArchivos';
 import PanelAcciones from './cargue/PanelAcciones';
-import PanelTransmision from './cargue/PanelTransmision';
 import HistorialArchivos from './cargue/HistorialArchivos';
 import DialogConfirmarAccion from './cargue/DialogConfirmarAccion';
 import useAuth from '../../auth/hooks/useAuth';
@@ -54,7 +51,8 @@ const respuestaDe = (err: unknown) =>
 // Estados en los que se pueden subir archivos (en Validado el lote vuelve a Parseado).
 const ESTADOS_CON_SUBIDA = ['Iniciado', 'Parseado', 'Validado'];
 
-// Orquesta el ciclo de vida del lote: crear → subir → validar → promover → AVRO / transmitir, o anular.
+// Orquesta el ciclo de vida del lote: crear → subir → validar → promover, o anular. El AVRO y la
+// transmisión son por fecha de corte, en Envío a MURIC (backend ADR 0008).
 // El estado y las llamadas al API viven aquí; los paneles de ./cargue solo pintan.
 // /app/carga-archivos crea un lote nuevo; /app/carga-archivos/:id abre uno existente.
 export default function CargaArchivos() {
@@ -67,7 +65,6 @@ export default function CargaArchivos() {
   // Lote state
   const [lote, setLote]         = useState<LoteResumen | null>(null);
   const [historial, setHistorial] = useState<HistorialArchivo[]>([]);
-  const [transmisiones, setTransmisiones] = useState<TransmisionSfc[]>([]);
 
   // File selection (one per insumo)
   const [archivos, setArchivos] = useState<Record<InsumoEnum, File | null>>({
@@ -88,9 +85,6 @@ export default function CargaArchivos() {
   // UI state
   const [loading, setLoading]               = useState(false);
   const [subiendoInsumo, setSubiendoInsumo] = useState<InsumoEnum | null>(null);
-  const [descargandoAvro, setDescargandoAvro] = useState(false);
-  const [transmitiendo, setTransmitiendo]   = useState(false);
-  const [consultandoTxId, setConsultandoTxId] = useState<number | null>(null);
   const [errores, setErrores]               = useState<string[]>([]);
   const [snackMsg, setSnackMsg]             = useState<string | null>(null);
   const [cargandoLote, setCargandoLote]     = useState(false);
@@ -124,17 +118,6 @@ export default function CargaArchivos() {
     }
   }, []);
 
-  const fetchTransmisiones = useCallback(async (loteId: number) => {
-    try {
-      const { data } = await axiosSecurityAPIClient.get<TransmisionSfc[]>(
-        `/cargas/${loteId}/transmisiones`
-      );
-      setTransmisiones(data);
-    } catch {
-      // silently ignore
-    }
-  }, []);
-
   const refrescarLote = useCallback(async (id: number) => {
     const [loteRes, historialRes] = await Promise.all([
       axiosSecurityAPIClient.get<LoteResumen>(`/cargas/${id}`),
@@ -142,15 +125,11 @@ export default function CargaArchivos() {
     ]);
     setLote(loteRes.data);
     setHistorial(historialRes.data);
-    if (loteRes.data.estado === 'Promovido') {
-      await fetchTransmisiones(id);
-    }
-  }, [fetchTransmisiones]);
+  }, []);
 
   const handleReset = useCallback(() => {
     setLote(null);
     setHistorial([]);
-    setTransmisiones([]);
     setArchivos({ Credito: null, Atributo: null, Movimiento: null, Todos: null });
     setPlantillasMap({ Credito: [], Atributo: [], Movimiento: [], Todos: [] });
     setPlantillaIds({ Credito: '', Atributo: '', Movimiento: '', Todos: '' });
@@ -325,85 +304,13 @@ export default function CargaArchivos() {
     }
   };
 
-  const handleDescargarAvro = async () => {
-    if (!lote) return;
-    setDescargandoAvro(true);
-    setErrores([]);
-    try {
-      const res = await fetchConToken(`/cargas/${lote.id}/avro`);
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as Record<string, unknown>;
-        throw new Error(String(body?.message ?? `Error ${res.status}`));
-      }
-      const sha256 = res.headers.get('x-sha256') ?? '';
-      const blob   = await res.blob();
-
-      // Extraer nombre del header Content-Disposition
-      const disposition = res.headers.get('content-disposition') ?? '';
-      const match = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
-      const filename = match?.[1]?.replace(/['"]/g, '') ?? `AVRO_lote${lote.id}.avro.p7z`;
-
-      const url = URL.createObjectURL(blob);
-      const a   = document.createElement('a');
-      a.href     = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      setSnackMsg(sha256
-        ? `Descargado: ${filename} — SHA-256: ${sha256.slice(0, 16)}…`
-        : `Archivo descargado: ${filename}`);
-    } catch (err) {
-      setErrores([err instanceof Error ? err.message : 'Error al descargar el archivo AVRO']);
-    } finally {
-      setDescargandoAvro(false);
-    }
-  };
-
-  const handleTransmitir = async () => {
-    if (!lote) return;
-    setTransmitiendo(true);
-    setErrores([]);
-    try {
-      const { data } = await axiosSecurityAPIClient.post<TransmitirResponse>(
-        `/cargas/${lote.id}/transmitir`
-      );
-      setSnackMsg(`Transmisión exitosa — ID SFC: ${data.idTransmisionSfc}`);
-      await fetchTransmisiones(lote.id);
-    } catch (err) {
-      setErrores([extractAxiosError(err)]);
-    } finally {
-      setTransmitiendo(false);
-    }
-  };
-
-  const handleConsultarEstado = async (txId: number) => {
-    if (!lote) return;
-    setConsultandoTxId(txId);
-    setErrores([]);
-    try {
-      await axiosSecurityAPIClient.post(
-        `/cargas/${lote.id}/transmisiones/${txId}/consultar`
-      );
-      await fetchTransmisiones(lote.id);
-      setSnackMsg('Estado de transmisión actualizado.');
-    } catch (err) {
-      setErrores([extractAxiosError(err)]);
-    } finally {
-      setConsultandoTxId(null);
-    }
-  };
-
   // ─── Derived state ────────────────────────────────────────────────────────────
 
   const canUpload    = !!lote && ESTADOS_CON_SUBIDA.includes(lote.estado);
   const canValidar   = !!lote && ['Parseado', 'Validado'].includes(lote.estado);
   const canPromover  = !!lote && lote.estado === 'Validado';
   const canAnular    = !!lote && (ESTADOS_ACTIVOS as string[]).includes(lote.estado);
-  const canTransmitir = !!lote && lote.estado === 'Promovido';
-  const isBusy       = loading || subiendoInsumo !== null || transmitiendo || descargandoAvro;
+  const isBusy       = loading || subiendoInsumo !== null;
 
   // ─── Render ───────────────────────────────────────────────────────────────────
 
@@ -527,19 +434,23 @@ export default function CargaArchivos() {
         }}
       />
 
-      {/* ── Step 4: Transmisión a la SFC ── */}
-      {canTransmitir && (
-        <PanelTransmision
-          transmisiones={transmisiones}
-          descargandoAvro={descargandoAvro}
-          transmitiendo={transmitiendo}
-          consultandoTxId={consultandoTxId}
-          isBusy={isBusy}
-          soloLectura={!canWrite}
-          onDescargarAvro={handleDescargarAvro}
-          onTransmitir={handleTransmitir}
-          onConsultarEstado={handleConsultarEstado}
-        />
+      {/* ── Lote promovido: el envío es por fecha de corte ── */}
+      {lote?.estado === 'Promovido' && (
+        <Alert
+          severity="success"
+          action={canWrite && (
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => navigate(`/app/envio-muric?fechaCorte=${lote.fechaCorte}`)}
+            >
+              Ir a Envío a MURIC
+            </Button>
+          )}
+        >
+          Lote promovido. El AVRO se genera y se transmite por fecha de corte ({lote.fechaCorte}), con todas
+          las universalidades del corte, en Envío a MURIC.
+        </Alert>
       )}
 
       {/* ── Loading bar ── */}

@@ -12,31 +12,6 @@ export interface HistorialArchivo {
   usuarioCarga: string;
 }
 
-export interface TransmisionSfc {
-  id: number;
-  loteId: number;
-  nombreArchivo: string;
-  hashSha256: string;
-  idTransmisionSfc: string;
-  estado: string;
-  codigoEstadoSfc: string | null;
-  mensajeEstado: string | null;
-  fechaTransmision: string;
-  usuarioTransmisor: string;
-  fechaUltimaConsulta: string | null;
-  totalCreditos: number;
-  totalDemograficos: number;
-  totalMovimientos: number;
-}
-
-export interface TransmitirResponse {
-  transmisionId: number;
-  idTransmisionSfc: string;
-  estado: string;
-  nombreArchivo: string;
-  hashSha256: string;
-}
-
 export const INSUMOS = [
   { enum: 'Credito',    codigo: '001-001', label: 'Información general de créditos' },
   { enum: 'Atributo',   codigo: '001-002', label: 'Atributos del crédito y deudor' },
@@ -46,10 +21,3 @@ export const INSUMOS = [
 ] as const;
 
 export type InsumoEnum = 'Credito' | 'Atributo' | 'Movimiento' | 'Todos';
-
-export const ESTADO_TX_COLOR: Record<string, 'default' | 'warning' | 'success' | 'error'> = {
-  Enviado:   'warning',
-  Aprobado:  'success',
-  Rechazado: 'error',
-  Error:     'error',
-};

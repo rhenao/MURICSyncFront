@@ -34,6 +34,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import * as XLSX from 'xlsx';
 import { useEntidades } from '../../../hooks/useEntidades';
 import { usePermission } from '../../auth/hooks/usePermission';
@@ -501,6 +502,18 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
       )
     );
 
+  // Pasa una fila de campo a atributo o al revés, conservando la columna del archivo.
+  const handleCambiarTipo = (tempId: string) =>
+    setFilas(prev =>
+      prev.map(f =>
+        f._tempId === tempId
+          ? f.esAtributo
+            ? { ...nuevaFila(), _tempId: f._tempId, nombreColumnaArchivo: f.nombreColumnaArchivo }
+            : { ...nuevaFilaAtributo(), _tempId: f._tempId, nombreColumnaArchivo: f.nombreColumnaArchivo }
+          : f
+      )
+    );
+
   const handleEliminarFila = (tempId: string) =>
     setFilas(prev => prev.filter(f => f._tempId !== tempId));
 
@@ -903,7 +916,7 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
                         <TableCell sx={{ fontWeight: 700, width: 200 }}>
                           Valor por defecto
                         </TableCell>
-                        <TableCell sx={{ width: 48 }} />
+                        <TableCell sx={{ width: esAtributos ? 88 : 48 }} />
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -915,6 +928,19 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
                           fila.claveAtributo != null
                             ? atributoPorClave.get(fila.claveAtributo)?.CatalogoValor ?? null
                             : null;
+                        // Pasar a atributo sigue las reglas de "Agregar atributo"; el EAV de esta misma fila no cuenta.
+                        const otraFilaEav = filas.some(
+                          o => o._tempId !== fila._tempId && !o.esAtributo && CAMPOS_EAV.includes(o.campoStaging)
+                        );
+                        const bloqueoAtributo = fila.esAtributo
+                          ? ''
+                          : !puedeLeerCatalogo
+                            ? 'Requiere permiso de consulta de tablas básicas (params.read).'
+                            : otraFilaEav
+                              ? 'La plantilla mapea "Clave Atributo"/"Valor Atributo" (formato EAV). Quítalos para usar columnas de atributo.'
+                              : cargandoCatalogo
+                                ? 'Cargando el catálogo de atributos...'
+                                : '';
                         return (
                           <TableRow
                             key={fila._tempId}
@@ -1021,7 +1047,25 @@ export default function FormPlantilla({ open, plantilla, onClose, onSave }: Prop
                               )}
                             </TableCell>
 
-                            <TableCell>
+                            <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                              {esAtributos && (
+                                <Tooltip
+                                  title={
+                                    bloqueoAtributo ||
+                                    (fila.esAtributo ? 'Cambiar a campo destino' : 'Cambiar a atributo')
+                                  }
+                                >
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleCambiarTipo(fila._tempId)}
+                                      disabled={!!bloqueoAtributo}
+                                    >
+                                      <SwapHorizIcon fontSize="small" />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                              )}
                               <IconButton
                                 size="small"
                                 onClick={() => handleEliminarFila(fila._tempId)}

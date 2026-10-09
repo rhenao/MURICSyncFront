@@ -262,18 +262,18 @@ Se sugiere un commit por fase: A queda separado de B–F, para que el renombrado
 
 ## 6. Criterios de aceptación
 
-- [ ] No existe `ListGeneral.tsx` ni ninguna referencia a `ListGeneral` en `src/` ni en `CLAUDE.md`.
-- [ ] Las 30 tablas SFC usan `ListaGeneralConsulta` y no muestran ningún botón de acción, aunque el usuario sea `ADMIN`.
-- [ ] Universalidades usa `ListaGeneralCrud` y la columna Estado muestra "Activo" o "Inactivo".
-- [ ] Un usuario con `params.write` ve "Nuevo" y Editar. Un usuario con solo `params.read` ve la lista sin acciones (ni ocultas por CSS ni deshabilitadas: no se renderizan).
-- [ ] Universalidades **no** muestra la acción Eliminar (R1).
-- [ ] Poner `Estado = "I"` desde Editar da de baja la universalidad: la fila sigue en la lista, con el chip "Inactivo" y atenuada. Se puede reactivar con `Estado = "A"`.
-- [ ] Crear y editar funcionan, y cada operación recarga la lista y muestra una notificación.
-- [ ] `ListaGeneralCrud` con `allowDelete` en `true` (valor por defecto) sigue ofreciendo Eliminar, para uso futuro en otras tablas.
-- [ ] Al editar, el código no se puede modificar.
-- [ ] Descripción vacía o de más de 100 caracteres, código vacío, no numérico o ≤ 0 → se bloquea en el cliente con un mensaje por campo.
-- [ ] Un código duplicado muestra un mensaje claro, no un error genérico.
-- [ ] `npm run lint` y `npm run build` pasan.
+- [x] No existe `ListGeneral.tsx` ni ninguna referencia a `ListGeneral` en `src/` ni en `CLAUDE.md`.
+- [x] Las 30 tablas SFC usan `ListaGeneralConsulta` y no muestran ningún botón de acción, aunque el usuario sea `ADMIN`.
+- [x] Universalidades usa `ListaGeneralCrud` y la columna Estado muestra "Activo" o "Inactivo".
+- [x] Un usuario con `params.write` ve "Nuevo" y Editar. Un usuario con solo `params.read` ve la lista sin acciones (ni ocultas por CSS ni deshabilitadas: no se renderizan).
+- [x] Universalidades **no** muestra la acción Eliminar (R1).
+- [x] Poner `Estado = "I"` desde Editar da de baja la universalidad: la fila sigue en la lista, con el chip "Inactivo" y atenuada. Se puede reactivar con `Estado = "A"`.
+- [x] Crear y editar funcionan, y cada operación recarga la lista y muestra una notificación.
+- [x] `ListaGeneralCrud` con `allowDelete` en `true` (valor por defecto) sigue ofreciendo Eliminar, para uso futuro en otras tablas.
+- [x] Al editar, el código no se puede modificar.
+- [x] Descripción vacía o de más de 100 caracteres, código vacío, no numérico o ≤ 0 → se bloquea en el cliente con un mensaje por campo.
+- [x] Un código duplicado muestra un mensaje claro, no un error genérico.
+- [x] `npm run lint` y `npm run build` pasan.
 
 ## 7. Pruebas manuales
 

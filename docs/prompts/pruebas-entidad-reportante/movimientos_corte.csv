@@ -1,0 +1,3 @@
+identificacion_credito_entidad;tipo_identificacion;numero_identificacion;estado;periodo_gracia;dias_mora;tasa_interes;spread_tasa_interes;saldo_capital;saldo_intereses;saldo_otros;modelo_provisiones;provision_prociclica;provision_contraciclica;provision_adicional_politica_entidad;provision_otros;valor_garantia
+PRB-301;1;6060606060;1;1;0;12.5;0;24000000;200000;0;1;0;0;0;0;0
+PRB-302;1;7070707070;1;1;15;11.2;0;13500000;120000;0;1;0;0;0;0;0

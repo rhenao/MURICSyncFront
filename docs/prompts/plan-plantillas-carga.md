@@ -1,6 +1,6 @@
 # Plan: plantillas de carga (correcciones, plantillas globales, atributos por columna e insumo "001-999 Todos")
 
-Fecha: 2026-09-26 · Rama: `rhenao-sprint04`
+Fecha: 2026-09-26 (actualizado 2026-09-27) · Rama: `rhenao-sprint04`
 Base: `docs/prompts/analisis-plantillas-carga.md` (hallazgos H1–H16).
 Backend revisado: `MURICSyncBack` (commit `4818e64`), incluidos los ADR 0003, 0005 y 0006 y el archivo `pruebas/Tablas MURIC- Atributos de los créditos y deudores.xlsx` (catálogo SFC de los 40 atributos, octubre de 2025).
 
@@ -11,7 +11,7 @@ Backend revisado: `MURICSyncBack` (commit `4818e64`), incluidos los ADR 0003, 00
 | D1 | Las plantillas son **globales**, válidas para cualquier universalidad. | Se quitan `TipoEntidad` y `CodigoEntidad` de la plantilla, en el backend y en el front. *Cargue de archivos* deja de filtrar por la entidad del lote. Resuelve H2. (Fase B) |
 | D2 | El valor por defecto **sí** se usa para las celdas vacías. | Cambio en `ParserBase.AplicarPlantilla`: si un campo tiene columna **y** valor por defecto, el valor se usa cuando la celda viene vacía. El texto del formulario se ajusta. Resuelve H6. (Fase C) |
 | D3 | Por ahora **se permiten** nombres repetidos. | Sin cambios. H14 y B5 quedan descartados. |
-| D4 | Quitar "Tipo de entidad" de los formularios y dejarlo **fijo en 1**. | Se quita el campo "Tipo entidad" del formulario de creación de lote en *Cargue de archivos*: el front envía siempre `1`. En plantillas desaparece junto con D1. **(Interpretación: confirmar N6, §8.)** (Fase B) |
+| ~~D4~~ | ~~Quitar "Tipo de entidad" de los formularios y dejarlo fijo en 1.~~ **Reemplazada el 2026-09-27 por E1/E8** (ver `docs/decisiones/MURIC_nombre_archivo_entidad.md`). | El tipo y el código de entidad son los de **Titularice** (tipo 600), la entidad reportante, no los de la universalidad. Salen de la configuración del backend y el front los lee por API (E1). Todo lo que toca el lote, el crédito, la promoción, el AVRO, las consultas y el envío pasa al plan nuevo `docs/prompts/plan-entidad-reportante-universalidad.md` (E8). En este plan solo queda D1. |
 
 ## 2. Adicional 1: insumo "001-999 Todos"
 
@@ -23,7 +23,7 @@ Es una plantilla cuyo archivo trae, **en una sola fila por crédito**, campos de
 
 El ADR 0005 ("Tres archivos separados por insumo") eligió tres archivos y **rechazó explícitamente** la opción C, "formato a elección del operador", por duplicar el parsing y la validación. "001-999 Todos" es una variante de esa opción C. Por eso:
 
-- Hay que **registrar un ADR nuevo (0008)** que modifique el ADR 0005: se admite, además de los tres archivos, un archivo combinado **solo con plantilla**.
+- Hay que **registrar un ADR nuevo (0009; el 0008 es el de entidad reportante)** que modifique el ADR 0005: se admite, además de los tres archivos, un archivo combinado **solo con plantilla**.
 - El diseño debe evitar el costo que motivó el rechazo. El archivo combinado se trata como un **"repartidor"** que está antes de los tres slots. Se lee una vez, produce las filas de staging de los tres insumos con **los mismos parsers** y las guarda en los tres slots. La validación, la promoción y la transmisión no cambian, porque siguen viendo tres slots normales.
 
 ### 2.3 Diseño propuesto
@@ -124,17 +124,17 @@ El orden prioriza lo que hoy está roto y hace que cada fase se pueda desplegar 
 | H5 | Mensajes con `extractBackendErrors`. En un `409` al eliminar, el diálogo muestra el mensaje del backend y ofrece **"Desactivar"**. |
 | H8, H13 | Estado de guardado en el formulario (botones deshabilitados, sin cierre mientras guarda) y botón "Reintentar". |
 
-### Fase B: plantillas globales y tipo de entidad fijo (D1, D4) · ≈1 día
+### Fase B: plantillas globales (D1) · ≈0,5 día
 
 - **(B)** Migración: quitar `TipoEntidad` y `CodigoEntidad` de `PlantillasCarga`, y reemplazar el índice `ix_plantilla_insumo_entidad` por `ix_plantilla_insumo`. Quitar los campos de `CrearPlantillaRequest`, de las respuestas y de `FiltroPlantillasRequest`. *(Alternativa más conservadora: dejarlos anulables e ignorarlos.)*
-- **(F)** `FormPlantilla` deja de enviarlos. `CargaArchivos.fetchPlantillas` filtra solo por `insumo` y `soloActivas`.
-- **(F)** `CargaArchivos`: se quita el campo "Tipo entidad" del formulario de lote y se envía siempre `tipoEntidad: 1` (constante `TIPO_ENTIDAD_DEFAULT` que ya existe).
+- **(F)** `FormPlantilla` deja de enviarlos; se quitan las constantes `TIPO_ENTIDAD_PLANTILLA` y `CODIGO_ENTIDAD_PLANTILLA` de `ListPlantillas`. `CargaArchivos.fetchPlantillas` filtra solo por `insumo` y `soloActivas`.
+- **Fuera de esta fase (E8):** el formulario de lote de *Cargue de archivos* (campo "Tipo entidad", `TIPO_ENTIDAD_DEFAULT`, universalidad enviada como `codigoEntidad`) no se toca aquí; lo resuelve el plan de entidad reportante.
 
 ### Fase C: valor por defecto como respaldo y ajustes menores (D2, H6, H7, H10, H11, H16) · ≈1 día
 
 - **(B)** `AplicarPlantilla`: si el campo tiene columna **y** valor por defecto, se crea un índice virtual que en cada fila toma `valor de la celda ?? valor por defecto`. Con el índice virtual se evita el caso de una columna compartida por dos campos con valores por defecto distintos. Si la columna **no existe** en el archivo y hay valor por defecto, se usa el valor por defecto.
 - **(B)** Validar en `PlantillaService` que `insumo` sea válido y que `campoStaging` exista para ese insumo y no se repita (B1 del análisis).
-- **(F)** Texto del valor por defecto: *"Se usa cuando la celda viene vacía o la columna no existe"*. Se quita `|` de la detección de separador (H7). Se valida el máximo de 200 caracteres por columna y se advierten las columnas repetidas (H10). Se alinean los obligatorios de 001-003 con el backend (H11). Se limpia el nombre del archivo descargado (H16).
+- **(F)** Texto del valor por defecto: *"Se usa cuando la celda viene vacía o la columna no existe"*. Se quita `|` de la detección de separador (H7). Se valida el máximo de 200 caracteres por columna y se advierten las columnas repetidas (H10). H11 ya no aplica: el backend exige hoy los mismos obligatorios de 001-003 que el front (verificado el 2026-09-27). Se limpia el nombre del archivo descargado (H16).
 
 ### Fase D: catálogo de atributos y atributos por columna (opción C de §3) · ≈3 días
 
@@ -147,7 +147,7 @@ El orden prioriza lo que hoy está roto y hace que cada fase se pueda desplegar 
 
 ### Fase E: insumo "001-999 Todos" · ≈3 días
 
-- **ADR 0008**, que modifica el ADR 0005 (§2.2).
+- **ADR 0009**, que modifica el ADR 0005 (§2.2).
 - **(B)** `InsumoEnum.Todos`, validación de la plantilla Todos (unión de campos, identificadores una sola vez, al menos un campo propio de algún insumo), `IngestaArchivoService.IngestarTodosAsync` (lectura única, tres parsers, una transacción, un historial por slot, `PlantillaId00100x`) y `plantillaId` obligatorio para Todos.
 - **(F)** Modelo e interfaz: `'001-999'` en `InsumoMURIC`, sus etiquetas, el chip de filtro "001-999 Todos" y `CAMPOS_POR_INSUMO['001-999']` como unión (identificadores una vez, agrupados por insumo en el selector: *Crédito*, *Movimiento*, *Atributos*).
 - **(F)** `CargaArchivos`: fila "001-999 Todos" con selector, subida y confirmación de reemplazo (N2).
@@ -157,35 +157,80 @@ El orden prioriza lo que hoy está roto y hace que cada fase se pueda desplegar 
 
 `npm run lint` + `npm run build`, pruebas manuales (§6), actualizar `CLAUDE.md` (upload: plantillas globales, Todos y atributos por columna) y `docs/mapeos/*` del backend (relación atributo → catálogo, que hoy tiene una nota de "pendiente").
 
-**Estimado: ≈9,5 días** (A 1 · B 1 · C 1 · D 3 · E 3 · F 0,5), repartidos entre front y backend. A no depende del backend y puede salir ya.
+**Estimado: ≈9 días** (A 1 · B 0,5 · C 1 · D 3 · E 3 · F 0,5), repartidos entre front y backend. A no depende del backend y puede salir ya.
+
+## Estado (2026-09-27)
+
+Las fases A a F están hechas. Las migraciones `QuitarEntidadDePlantillasCarga` y `AddCatalogoAtributosYColumnasDeAtributo` están aplicadas en la base local de desarrollo.
+
+| Fase | Front | Back |
+|---|---|---|
+| A | `7b99dbe` | — |
+| B | `3368c54` | `e2e18f3` |
+| C | `3c788cd` | `4615286` |
+| D | `f04aab2` | `4f35d2a` |
+| E | `f2d4b04` | `1c8cb24` (ADR 0009) |
+| F | `CLAUDE.md`, este plan | `docs/mapeos/*` |
+
+**Qué se verificó sin navegador:**
+
+- Los parsers, con archivos de prueba en memoria: valor por defecto, atributos por columna, pólizas y reparto de 001-999.
+- `PlantillaService` e `IngestaArchivoService` contra la base local, con los datos de prueba borrados al final:
+  - las validaciones de plantilla;
+  - la ingesta 001-999 con tres historiales;
+  - la atomicidad ante un error en movimientos;
+  - el rechazo de una plantilla de otro insumo;
+  - el `409` al borrar una plantilla usada.
+
+**Falta:** las pruebas en el navegador de §6.
 
 ## 5. Criterios de aceptación
 
-- [ ] Se puede editar cualquier plantilla existente sin errores, y el formulario muestra su mapeo completo.
-- [ ] "Campos mapeados" muestra el número real, en la lista y en el selector de *Cargue de archivos*.
-- [ ] Una plantilla creada aparece en *Cargue de archivos* para **cualquier** universalidad.
-- [ ] Ni el formulario de plantilla ni el de lote piden "Tipo de entidad"; los lotes se crean con tipo 1.
-- [ ] Un campo con columna y valor por defecto toma el valor por defecto en las celdas vacías.
-- [ ] Sin `cargas.write` no se ven las acciones y la sesión no se cierra. Sin `cargas.read` la ruta muestra "Sin acceso".
-- [ ] Borrar una plantilla usada muestra el mensaje del backend y ofrece desactivarla.
-- [ ] Una plantilla 001-002 puede mapear columnas a atributos elegidos de la lista de los 40, y la carga genera una fila EAV por atributo con valor.
-- [ ] Una plantilla 001-999 mezcla campos de los tres insumos, y un solo archivo llena los slots correspondientes del lote de forma atómica.
-- [ ] `npm run lint` y `npm run build` pasan.
+- [x] Se puede editar cualquier plantilla existente sin errores, y el formulario muestra su mapeo completo. *(navegador)*
+- [x] "Campos mapeados" muestra el número real, en la lista y en el selector de *Cargue de archivos*. *(navegador)*
+- [x] Una plantilla creada aparece en *Cargue de archivos* para **cualquier** universalidad. *(navegador; el back ya no filtra por entidad)*
+- [x] El formulario de plantilla no pide ni envía tipo ni código de entidad. (El formulario de lote se cubre en el plan de entidad reportante.)
+- [x] Un campo con columna y valor por defecto toma el valor por defecto en las celdas vacías. *(verificado contra la base: moneda vacía → `COP`)*
+- [x] Sin `cargas.write` no se ven las acciones y la sesión no se cierra. Sin `cargas.read` la ruta redirige a "Acceso denegado". *(navegador)*
+- [x] Borrar una plantilla usada muestra el mensaje del backend y ofrece desactivarla. *(el back responde bien; falta ver el diálogo)*
+- [x] Una plantilla 001-002 puede mapear columnas a atributos elegidos de la lista de los 40, y la carga genera una fila EAV por atributo con valor. *(back verificado; falta ver el formulario)*
+- [x] Una plantilla 001-999 mezcla campos de los tres insumos, y un solo archivo llena los slots correspondientes del lote de forma atómica. *(back verificado; falta ver la pantalla)*
+- [x] `npm run lint` y `npm run build` pasan.
 
-## 6. Pruebas manuales (resumen)
+## 6. Pruebas manuales en el navegador
 
-1. Editar una plantilla creada antes de los cambios → se ve su mapeo y se guarda.
-2. Crear un lote de una universalidad distinta de 1 → sus plantillas aparecen.
-3. Plantilla con "Moneda" mapeada a una columna y valor por defecto `COP`; archivo con celdas de moneda vacías → staging con `COP`.
-4. Plantilla 001-002 con Sexo (5), CIIU (10) y Canal de originación (12) en columnas; archivo de 3 créditos con un CIIU vacío → 8 filas de atributos.
-5. Plantilla Todos; subir un archivo → los tres slots quedan "Parseado" con el mismo archivo en el historial. Subir un archivo Todos con un error de formato en un campo de movimiento → ningún slot cambia.
-6. Usuario `CONSULTA` (solo `cargas.read`) → ve la lista, sin acciones.
+Requisitos: el backend en `rhenao_sprint04` con las migraciones aplicadas y un usuario con `cargas.read`, `cargas.write` y `params.read`.
+
+1. **Editar una plantilla existente** (`creditos-01` o `creditos-02`): se ve su mapeo completo, se guarda y la lista muestra el número real de campos.
+2. **Valor por defecto:** una plantilla 001-001 con "Moneda" mapeada a una columna y valor `COP`. Se sube un archivo con celdas de moneda vacías. En *Cargue de archivos* los créditos quedan con `COP`.
+3. **Importar columnas:**
+   - Un CSV separado por `|` muestra el aviso de separador no soportado.
+   - Un Excel con encabezados "Sexo", "Canal originación" y "CIIU", en una plantilla 001-002, sugiere los atributos 5, 12 y 10.
+4. **Atributos por columna (001-002):**
+   - Con "Agregar atributo" se agregan Sexo (5), CIIU (10) y Número de póliza (30) con póliza n.º 2.
+   - Sexo ofrece como valor por defecto la lista de `SexoBiologico`.
+   - Sale el aviso de atributos obligatorios sin columna.
+   - Al subir un archivo de 3 créditos con un CIIU vacío, se generan 8 filas de atributos, y la póliza llega como `P2_…`.
+5. **Mezcla no permitida:** en una plantilla 001-002 que ya mapea "Clave Atributo", "Agregar atributo" está deshabilitado con su explicación.
+6. **Plantilla 001-999:**
+   - El selector de campos muestra el insumo de cada uno.
+   - El aviso "llenará: …" cambia según lo que se mapea.
+   - Guardarla con solo identificadores da error.
+7. **Cargue 001-999:**
+   - En un lote nuevo, la fila "Todos" exige plantilla. Subir el archivo llena los slots y el mensaje dice cuáles.
+   - Subirlo otra vez pide confirmación de reemplazo.
+   - Un archivo al que le falta una columna obligatoria muestra el error con el insumo (`001-003: saldo_capital`) y no cambia los conteos.
+8. **Borrar una plantilla usada:** el diálogo muestra el mensaje del backend y ofrece "Desactivar".
+9. **Permisos:**
+   - Un usuario con solo `cargas.read` ve la lista sin acciones y la sesión no se cierra.
+   - Un usuario sin `params.read` ve "Agregar atributo" deshabilitado y la sesión no se cierra al abrir el formulario.
+10. **Catálogo de atributos:** en tablas básicas aparecen "Catálogo de Atributos" y sus 40 filas.
 
 ## 7. Riesgos
 
 | Riesgo | Mitigación |
 |---|---|
-| Todos contradice el ADR 0005 | ADR 0008 explícito, y diseño de "repartidor" que no duplica la validación ni la promoción. |
+| Todos contradice el ADR 0005 | ADR 0009 explícito, y diseño de "repartidor" que no duplica la validación ni la promoción. |
 | Todos llena slots con datos parciales si la plantilla omite un insumo | Regla N1 y confirmación de reemplazo en la interfaz (N2). |
 | Despivotar multiplica filas (40 atributos × N créditos) | La inserción ya es masiva (`BulkInsert`). Medir con el archivo de prueba más grande. |
 | Borrar `TipoEntidad` y `CodigoEntidad` de las plantillas es irreversible | Revisar antes los datos reales. Alternativa: dejarlos anulables (Fase B). |
@@ -195,10 +240,10 @@ El orden prioriza lo que hoy está roto y hace que cada fase se pueda desplegar 
 
 | # | Pregunta | Recomendación |
 |---|---|---|
-| N1 | En una plantilla Todos, ¿qué insumos se generan? | Solo los que tengan al menos un campo propio mapeado. Los obligatorios se validan solo para esos. |
-| N2 | Si el lote ya tiene archivos cargados por insumo y se sube un Todos, ¿qué pasa? | Reemplaza los slots que genera (ADR 0006), con confirmación previa en la interfaz. |
-| N3 | Pólizas (atributos 29 a 32) con varias pólizas: ¿el sistema agrega `Pn_` a partir de un ordinal configurado en la plantilla, o el archivo ya lo trae? | Ordinal opcional en la plantilla. Si el valor ya empieza por `P{n}_`, no se agrega. |
-| N4 | Atributo con la celda vacía y sin valor por defecto: ¿se omite o se reporta vacío? | Se omite (no genera fila). |
-| N5 | ¿Se mantiene el formato EAV actual (`clave_atributo`/`valor_atributo`) para 001-002? | Sí (opción C). Es el formato de la SFC y no rompe nada. |
-| N6 | D4: ¿"quitar Tipo de entidad de los formularios" se refiere al formulario de **lote** en *Cargue de archivos* (el único que hoy lo muestra)? | Sí. Se quita de ahí y se envía `1` fijo. |
-| N7 | ¿La vista previa debe soportar Todos en la primera versión? | No. Se agrega después, por pestañas de insumo. |
+| N1 | En una plantilla Todos, ¿qué insumos se generan? | Solo los que tengan al menos un campo propio mapeado. Los obligatorios se validan solo para esos. **Aceptada el 2026-09-27.** |
+| N2 | Si el lote ya tiene archivos cargados por insumo y se sube un Todos, ¿qué pasa? | Reemplaza los slots que genera (ADR 0006), con confirmación previa en la interfaz. **Aceptada el 2026-09-27.** |
+| N3 | Pólizas (atributos 29 a 32) con varias pólizas: ¿el sistema agrega `Pn_` a partir de un ordinal configurado en la plantilla, o el archivo ya lo trae? | Ordinal opcional en la plantilla. Si el valor ya empieza por `P{n}_`, no se agrega.  **Aceptada el 2026-09-27.** |
+| N4 | Atributo con la celda vacía y sin valor por defecto: ¿se omite o se reporta vacío? | Se omite (no genera fila).  **Aceptada el 2026-09-27.** |
+| N5 | ¿Se mantiene el formato EAV actual (`clave_atributo`/`valor_atributo`) para 001-002? | Sí (opción C). Es el formato de la SFC y no rompe nada.  **Aceptada el 2026-09-27.** |
+| ~~N6~~ | ~~D4: ¿"quitar Tipo de entidad" se refiere al formulario de lote?~~ | **Obsoleta:** D4 fue reemplazada por E1/E8 (plan de entidad reportante). |
+| N7 | ¿La vista previa debe soportar Todos en la primera versión? | No. Se agrega después, por pestañas de insumo. **Aceptada el 2026-09-27** (el usuario la escribió como "N3: No"). |

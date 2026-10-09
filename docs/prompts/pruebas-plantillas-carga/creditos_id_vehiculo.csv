@@ -1,0 +1,5 @@
+identificacion_credito_entidad;tipo_identificacion;numero_identificacion;modalidad;codigo_producto;calidad_deudor;fecha_desembolso;valor_desembolsado;tipo_tasa;tipo_garantia;Moneda;identificacion_negocio_vehiculo_universalidad
+PRB-201;1;2010101010;1;101;1;2024-01-15;15000000;DTF;1;COP;600003001ABCDEFGHIJKL
+PRB-202;1;2020202020;1;101;1;2024-02-20;8000000;DTF;1;COP;
+PRB-203;1;2030303030;1;102;1;2024-03-10;12000000;IPC;1;COP;60000300112345
+PRB-204;1;2040404040;1;102;1;2024-04-10;9000000;IPC;1;COP;600001001ABCDEFGHIJKL

@@ -20,6 +20,7 @@ import {
 } from "@mui/icons-material";
 import { AxiosError } from "axios";
 import { type UserInfoDto } from "../models/UserInfoDto";
+import { PASSWORD_HELPER_TEXT, validatePasswordStrength } from "../utils/passwordPolicy";
 
 interface DialogResetPasswordProps {
   open: boolean;
@@ -69,8 +70,8 @@ export default function DialogResetPassword({
 
     if (!formData.newPassword.trim()) {
       validationErrors.push("La nueva contraseña es requerida");
-    } else if (formData.newPassword.length < 6) {
-      validationErrors.push("La contraseña debe tener al menos 6 caracteres");
+    } else {
+      validationErrors.push(...validatePasswordStrength(formData.newPassword));
     }
 
     if (!formData.confirmPassword.trim()) {
@@ -99,8 +100,6 @@ export default function DialogResetPassword({
       }
 
       // TODO: Implementar llamada a la API
-      console.log("Reseteando contraseña para usuario:", user.id);
-      console.log("Nueva contraseña:", formData.newPassword);
 
       // Simulación de llamada a API
       // await UserService.resetPassword(user.id, formData.newPassword);
@@ -233,7 +232,7 @@ export default function DialogResetPassword({
                 </InputAdornment>
               ),
             }}
-            helperText="La contraseña debe tener al menos 6 caracteres"
+            helperText={PASSWORD_HELPER_TEXT}
           />
 
           <TextField

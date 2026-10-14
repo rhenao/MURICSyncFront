@@ -1,783 +1,509 @@
-import React, { useState, useRef } from "react";
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Button,
-  TextField,
-  Typography,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableContainer,
-  LinearProgress,
-  Stack,
   Alert,
+  Box,
+  Button,
   Chip,
-  Divider,
-  IconButton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-} from "@mui/material";
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import Grid from "@mui/material/Grid";
-import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
-//import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-
-import Paper from "@mui/material/Paper";
-import Box from "@mui/material/Box";
-import ResultadoCargue from "./ResultadoCargue";
-import * as XLSX from "xlsx";
+  LinearProgress,
+  Paper,
+  Snackbar,
+  Stack,
+  Typography,
+} from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import axiosSecurityAPIClient from '../../../api/axiosSecurityAPIClient';
+import { fetchConToken } from '../../../api/fetchConToken';
 import {
-  //type ArchivosCarga,
-  type ArchivosCargaDetalle,
-  type MetadatosCarga,
-  //type RegistroAuditoria,
-  type VersionArchivo,
-  crearArchivoCarga,
-  crearDetalleCarga,
-  crearRegistroAuditoria,
-} from "../models/UploadModels";
+  insumosGeneradosTodos,
+  type InsumoMURIC,
+  type PlantillaResumen,
+} from '../models/Plantilla.model';
+import PlantillaService from '../services/PlantillaService';
+import { ESTADO_LOTE_COLOR, ESTADOS_ACTIVOS, type LoteResumen } from '../models/Lote.model';
+import {
+  INSUMOS,
+  type HistorialArchivo,
+  type InsumoEnum,
+} from './cargue/tiposCargue';
+import FormNuevoLote from './cargue/FormNuevoLote';
+import ResumenLote from './cargue/ResumenLote';
+import PanelArchivos from './cargue/PanelArchivos';
+import PanelAcciones from './cargue/PanelAcciones';
+import HistorialArchivos from './cargue/HistorialArchivos';
+import PanelErrores from './cargue/PanelErrores';
+import DialogConfirmarAccion from './cargue/DialogConfirmarAccion';
+import useAuth from '../../auth/hooks/useAuth';
+import ChipEntidadReportante from '../../configuracion/components/ChipEntidadReportante';
 
-type UploadStatus =
-  | "Sin archivo"
-  | "Cargado"
-  | "Validado"
-  | "Procesado"
-  | "Error"
-  | "Reversado";
-
-interface FileSummary {
-  name: string;
-  sizeBytes: number;
-  lines: number;
-  contentPreview: string[];
-  content: string[]; // primeras n líneas
-}
-
-interface Empresa {
-  codigo: string;
-  nombre: string;
-}
-
-// Datos de prueba - después conectar con API
-const empresasPrueba: Empresa[] = [
-  { codigo: "001", nombre: "Ban100" },
-  { codigo: "002", nombre: "Compensar" },
-  // { codigo: "003", nombre: "Bancolombia" },
-  // { codigo: "004", nombre: "Banco de Bogotá" },
-  // { codigo: "005", nombre: "Banco Popular" },
-  // { codigo: "006", nombre: "BBVA" },
-  // { codigo: "007", nombre: "Banco Caja Social" },
-  // { codigo: "008", nombre: "Banco Agrario de Colombia" },
-  // { codigo: "009", nombre: "Banco AV Villas" },
-  // { codigo: "010", nombre: "Banco Cooperativo Coopcentral" },
-];
-
-// Función para obtener el último día del mes anterior
-const getLastDayOfPreviousMonth = (): Date => {
-  const now = new Date();
-  const year = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-  const month = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
-
-  // El día 0 del mes actual es el último día del mes anterior
-  return new Date(year, month + 1, 0);
+const extractAxiosError = (err: unknown): string => {
+  const d = (err as { response?: { data?: unknown } })?.response?.data;
+  if (!d) return err instanceof Error ? err.message : 'Error desconocido';
+  if (typeof d === 'string') return d;
+  const rec = d as Record<string, unknown>;
+  const msg = String(rec.mensaje ?? rec.message ?? 'Error desconocido');
+  const faltantes = (rec.columnasFaltantes as string[] | undefined) ?? [];
+  return faltantes.length ? `${msg} Columnas faltantes: ${faltantes.join(', ')}` : msg;
 };
 
+const respuestaDe = (err: unknown) =>
+  (err as { response?: { status?: number; data?: unknown } })?.response;
+
+// Estados en los que se pueden subir archivos (en Validado el lote vuelve a Parseado).
+const ESTADOS_CON_SUBIDA = ['Iniciado', 'Parseado', 'Validado'];
+
+// Orquesta el ciclo de vida del lote: crear → subir → validar → promover, o anular. El AVRO y la
+// transmisión son por fecha de corte, en Envío a MURIC (backend ADR 0008).
+// El estado y las llamadas al API viven aquí; los paneles de ./cargue solo pintan.
+// /app/carga-archivos crea un lote nuevo; /app/carga-archivos/:id abre uno existente.
 export default function CargaArchivos() {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { id: idParam } = useParams();
+  const navigate = useNavigate();
+  const { hasPermission } = useAuth();
+  // Sin cargas.write la pantalla es de consulta: un 403 del API cierra la sesión.
+  const canWrite = hasPermission('cargas.write');
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileSummary, setFileSummary] = useState<FileSummary | null>(null);
+  // Lote state
+  const [lote, setLote]         = useState<LoteResumen | null>(null);
+  const [historial, setHistorial] = useState<HistorialArchivo[]>([]);
 
-  const [fechaCargue, setFechaCargue] = useState<string>(
-    new Date().toISOString().slice(0, 10)
+  // File selection (one per insumo)
+  const [archivos, setArchivos] = useState<Record<InsumoEnum, File | null>>({
+    Credito: null, Atributo: null, Movimiento: null, Todos: null,
+  });
+
+  // Plantilla selection (optional, one per insumo)
+  const [plantillasMap, setPlantillasMap] = useState<Record<InsumoEnum, PlantillaResumen[]>>({
+    Credito: [], Atributo: [], Movimiento: [], Todos: [],
+  });
+  const [plantillaIds, setPlantillaIds] = useState<Record<InsumoEnum, number | ''>>(
+    { Credito: '', Atributo: '', Movimiento: '', Todos: '' }
   );
-  const [fechaCorte, setFechaCorte] = useState<string>(
-    getLastDayOfPreviousMonth().toISOString().slice(0, 10)
-  );
-  const [codigoEmpresa, setCodigoEmpresa] = useState<string>("");
-  const [nombreEmpresa, setNombreEmpresa] = useState<string>("");
-  const [processNumber, setProcessNumber] = useState<number | null>(null);
-  const [status, setStatus] = useState<UploadStatus>("Sin archivo");
+  // N2: slots con datos que un archivo 001-999 va a reemplazar, pendientes de confirmar.
+  const [confirmarTodos, setConfirmarTodos] = useState<InsumoMURIC[] | null>(null);
+  const [cargandoPlantillas, setCargandoPlantillas] = useState(false);
 
-  const [loading, setLoading] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  // UI state
+  const [loading, setLoading]               = useState(false);
+  const [subiendoInsumo, setSubiendoInsumo] = useState<InsumoEnum | null>(null);
+  const [errores, setErrores]               = useState<string[]>([]);
+  const [snackMsg, setSnackMsg]             = useState<string | null>(null);
+  const [cargandoLote, setCargandoLote]     = useState(false);
+  const [noEncontrado, setNoEncontrado]     = useState(false);
+  // 409 al crear: ya hay un lote activo para ese corte y universalidad.
+  const [loteExistente, setLoteExistente]   = useState<number | null>(null);
+  // Al crear con un lote promovido del mismo corte; se muestra mientras ese lote siga abierto.
+  const [advertencia, setAdvertencia]       = useState<{ loteId: number; texto: string } | null>(null);
+  const [confirmarAccion, setConfirmarAccion] = useState<'promover' | 'anular' | null>(null);
 
-  // preview rows for grid
-  const [previewRows, setPreviewRows] = useState<Record<string, string>[]>([]);
-  const [detallesCarga, setDetallesCarga] = useState<ArchivosCargaDetalle[]>(
-    []
-  );
+  // ─── API helpers ─────────────────────────────────────────────────────────────
 
-  const openFilePicker = () => fileInputRef.current?.click();
+  // Las plantillas son globales: no dependen de la universalidad del lote.
+  const fetchPlantillas = useCallback(async () => {
+    setCargandoPlantillas(true);
+    try {
+      const results = await Promise.all(
+        INSUMOS.map(ins =>
+          PlantillaService
+            .listar({ insumo: ins.codigo, soloActivas: true })
+            .then(data => ({ insumo: ins.enum as InsumoEnum, data }))
+        )
+      );
+      const map: Record<InsumoEnum, PlantillaResumen[]> = { Credito: [], Atributo: [], Movimiento: [], Todos: [] };
+      for (const { insumo, data } of results) map[insumo] = data;
+      setPlantillasMap(map);
+    } catch {
+      // plantillas are optional — silently ignore
+    } finally {
+      setCargandoPlantillas(false);
+    }
+  }, []);
 
-  const handleEmpresaChange = (codigo: string) => {
-    const empresa = empresasPrueba.find((e) => e.codigo === codigo);
-    setCodigoEmpresa(codigo);
-    setNombreEmpresa(empresa?.nombre || "");
-  };
+  const refrescarLote = useCallback(async (id: number) => {
+    const [loteRes, historialRes] = await Promise.all([
+      axiosSecurityAPIClient.get<LoteResumen>(`/cargas/${id}`),
+      axiosSecurityAPIClient.get<HistorialArchivo[]>(`/cargas/${id}/historial`),
+    ]);
+    setLote(loteRes.data);
+    setHistorial(historialRes.data);
+  }, []);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files && e.target.files[0];
-    setValidationErrors([]);
-    if (!f) {
-      setSelectedFile(null);
-      setFileSummary(null);
-      setPreviewRows([]);
-      setStatus("Sin archivo");
+  const handleReset = useCallback(() => {
+    setLote(null);
+    setHistorial([]);
+    setArchivos({ Credito: null, Atributo: null, Movimiento: null, Todos: null });
+    setPlantillasMap({ Credito: [], Atributo: [], Movimiento: [], Todos: [] });
+    setPlantillaIds({ Credito: '', Atributo: '', Movimiento: '', Todos: '' });
+    setConfirmarTodos(null);
+    setConfirmarAccion(null);
+    setErrores([]);
+    setLoteExistente(null);
+    setNoEncontrado(false);
+  }, []);
+
+  // El lote sale de la URL: al abrirlo desde la lista, al crearlo o al recargar la página.
+  useEffect(() => {
+    if (!idParam) {
+      handleReset();
       return;
     }
-    setSelectedFile(f);
-    setStatus("Sin archivo");
-    // auto-fill fechaCargue
-    setFechaCargue(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
-  };
-
-  const countLinesAndPreview = async (file: File): Promise<FileSummary> => {
-    return new Promise<FileSummary>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(new Error("Error leyendo el archivo"));
-
-      reader.onload = () => {
-        try {
-          const data = reader.result;
-          let rows: string[][] = [];
-          let lines = 0;
-
-          // Determinar tipo de archivo
-          const isExcel =
-            file.name.toLowerCase().endsWith(".xlsx") ||
-            file.name.toLowerCase().endsWith(".xls");
-
-          if (isExcel) {
-            // Procesar archivo Excel
-            const workbook = XLSX.read(data, { type: "array" });
-            const sheetName = workbook.SheetNames[0]; // Primera hoja
-            const worksheet = workbook.Sheets[sheetName];
-
-            // Convertir a array de arrays
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-              header: 1,
-              defval: "",
-            }) as string[][];
-
-            rows = jsonData;
-            lines = jsonData.length;
-          } else {
-            // Procesar archivo CSV/TXT
-            const text = String(data ?? "");
-            const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-            const textRows = normalized.split("\n");
-            lines = textRows.length;
-
-            // Convertir CSV a array de arrays
-            rows = textRows.map((line) => {
-              // Simple CSV parser (para casos complejos usar papaparse)
-              return line
-                .split(",")
-                .map((cell) => cell.trim().replace(/"/g, ""));
-            });
-          }
-
-          // Tomar las primeras 10 filas para preview
-          const preview = rows.slice(0, 10).map((row) => row.join(","));
-          const content = rows.map((row) => row.join(","));
-
-          resolve({
-            name: file.name,
-            sizeBytes: file.size,
-            lines,
-            contentPreview: preview,
-            content,
-          });
-        } catch (err) {
-          reject(new Error(`Error procesando archivo: ${err}`));
-        }
-      };
-
-      // Leer como ArrayBuffer para Excel o como texto para CSV
-      const isExcel =
-        file.name.toLowerCase().endsWith(".xlsx") ||
-        file.name.toLowerCase().endsWith(".xls");
-
-      if (isExcel) {
-        reader.readAsArrayBuffer(file);
-      } else {
-        reader.readAsText(file, "UTF-8");
+    const id = Number(idParam);
+    if (id === lote?.id) return;
+    if (!Number.isInteger(id)) {
+      handleReset();
+      setNoEncontrado(true);
+      return;
+    }
+    (async () => {
+      handleReset();
+      setCargandoLote(true);
+      try {
+        await refrescarLote(id);
+        if (canWrite) fetchPlantillas();
+      } catch (err) {
+        if (respuestaDe(err)?.status === 404) setNoEncontrado(true);
+        else setErrores([extractAxiosError(err)]);
+      } finally {
+        setCargandoLote(false);
       }
-    });
-  };
+    })();
+  }, [idParam, lote?.id, canWrite, refrescarLote, fetchPlantillas, handleReset]);
 
-  const handleCargarArchivo = async () => {
-    if (!selectedFile) return;
+  // ─── Handlers ────────────────────────────────────────────────────────────────
+
+  const handleCrearLote = async (fechaCorte: string, universalidadCodigo: number, observaciones: string | null) => {
     setLoading(true);
-    setValidationErrors([]);
-
+    setErrores([]);
+    setLoteExistente(null);
     try {
-      // Validar tipo de archivo
-      const allowedTypes = [".csv", ".txt", ".xlsx", ".xls"];
-      const fileExtension = selectedFile.name
-        .toLowerCase()
-        .substring(selectedFile.name.lastIndexOf("."));
-
-      if (!allowedTypes.includes(fileExtension)) {
-        throw new Error(
-          `Tipo de archivo no soportado: ${fileExtension}. Tipos permitidos: ${allowedTypes.join(
-            ", "
-          )}`
-        );
-      }
-
-      // Validar tamaño del archivo (máximo 10MB)
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      if (selectedFile.size > maxSize) {
-        throw new Error(
-          `El archivo es demasiado grande. Tamaño máximo permitido: ${
-            maxSize / (1024 * 1024)
-          }MB`
-        );
-      }
-
-      const summary = await countLinesAndPreview(selectedFile);
-      setFileSummary(summary);
-      console.log("Resumen del archivo:", summary);
-      // Generar número de proceso si no existe
-      const numeroProceso =
-        processNumber || Math.floor(Math.random() * 900000) + 100000;
-      setProcessNumber(numeroProceso);
-
-      // Crear metadatos
-      const metadatos: MetadatosCarga = {
-        fechaCargue,
+      const { data } = await axiosSecurityAPIClient.post<LoteResumen & { advertencia?: string }>('/cargas', {
         fechaCorte,
-        codigoEmpresa,
-        nombreEmpresa,
-        numeroProceso,
-        totalLineas: summary.lines,
-        extensionArchivo: fileExtension,
-        tamanoOriginal: selectedFile.size,
-      };
-
-      // Crear modelo ArchivoSubida usando función utilitaria
-      const archivoCarga = crearArchivoCarga(
-        selectedFile,
-        metadatos,
-        "usuario@ejemplo.com" // TODO: obtener del contexto
-      );
-
-      // Crear detalles de carga
-      const detallesCarga: ArchivosCargaDetalle[] = [];
-      const allRows = summary.content;
-
-      for (let i = 0; i < allRows.length; i++) {
-        const cols = allRows[i].split(",");
-        const datosCrudos: Record<string, unknown> = {};
-
-        cols.forEach((valor, indiceCol) => {
-          datosCrudos[`col${indiceCol + 1}`] = valor.trim();
-        });
-
-        const detalleCarga = crearDetalleCarga(
-          archivoCarga.idArchivo,
-          i + 1,
-          datosCrudos
-        );
-        detallesCarga.push(detalleCarga);
-      }
-
-      // Crear registro de auditoría
-      const registroAuditoria = crearRegistroAuditoria(
-        "usuario@ejemplo.com",
-        "SUBIDA_CREAR",
-        `Archivo cargado: ${selectedFile.name} con ${summary.lines} líneas`,
-        {
-          nombreArchivo: selectedFile.name,
-          tamanoArchivo: selectedFile.size,
-          empresa: codigoEmpresa,
-          numeroProceso,
-        }
-      );
-
-      // Crear versión del archivo
-      const versionArchivo: VersionArchivo = {
-        idArchivoSubida: archivoCarga.idArchivo,
-        version: 1,
-        fechaCreacion: new Date().toISOString(),
-        creadoPor: "usuario@ejemplo.com",
-        rutaArchivo: archivoCarga.ruta ?? "N/A",
-        notas: `Versión inicial - Carga desde ${fileExtension.toUpperCase()}`,
-      };
-
-      // Actualizar estado de la UI
-      const rows = summary.content.map((line, index) => {
-        const cols = line.split(",");
-        const obj: Record<string, string> = {};
-
-        if (index === 0) {
-          cols.forEach((c, i) => (obj[`${c || `col${i + 1}`}`] = c.trim()));
-        } else {
-          cols.forEach((c, i) => (obj[`col${i + 1}`] = c.trim()));
-        }
-        return obj;
+        universalidadCodigo,
+        observaciones,
       });
+      if (data.advertencia) setAdvertencia({ loteId: data.id, texto: data.advertencia });
+      setSnackMsg(`Lote #${data.id} creado exitosamente.`);
+      // La URL del lote hace que una recarga de la página no lo pierda; el efecto lo carga.
+      navigate(`/app/carga-archivos/${data.id}`, { replace: true });
+    } catch (err) {
+      setErrores([extractAxiosError(err)]);
+      const res = respuestaDe(err);
+      const existente = (res?.data as { loteIdExistente?: unknown } | undefined)?.loteIdExistente;
+      if (res?.status === 409 && typeof existente === 'number') setLoteExistente(existente);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      setPreviewRows(rows);
-      setStatus("Cargado");
-      setDetallesCarga(detallesCarga);
+  const handleSubirArchivo = async (insumo: InsumoEnum) => {
+    if (insumo === 'Todos') await prepararSubidaTodos();
+    else await subirArchivo(insumo);
+  };
 
-      // Preparar datos para envío al backend
-      const datosCarga = {
-        archivoCarga,
-        detallesCarga,
-        registroAuditoria,
-        versionArchivo,
-        metadatos,
+  // N2: el archivo 001-999 reemplaza los slots que genera su plantilla; si ya tienen datos, se confirma antes.
+  const prepararSubidaTodos = async () => {
+    if (!lote || !archivos.Todos || plantillaIds.Todos === '') return;
+    setErrores([]);
+    try {
+      const plantilla = await PlantillaService.obtener(plantillaIds.Todos);
+      const generados = insumosGeneradosTodos(plantilla.campos);
+      const filasPorSlot: Record<string, number> = {
+        '001-001': lote.conteos?.creditos ?? 0,
+        '001-002': lote.conteos?.atributos ?? 0,
+        '001-003': lote.conteos?.movimientos ?? 0,
       };
-
-      console.log("Datos preparados para envío al backend:", datosCarga);
-
-      // TODO: Enviar al servicio backend
-      // await servicioSubidaArchivos.crear(datosCarga);
-    } catch (err) {
-      console.error("Error cargando archivo:", err);
-      const mensajeError =
-        err instanceof Error
-          ? err.message
-          : "Error desconocido al leer el archivo";
-      setValidationErrors([mensajeError]);
-      setStatus("Error");
-
-      // Crear registro de error en auditoría
-      const registroError = crearRegistroAuditoria(
-        "usuario@ejemplo.com",
-        "SUBIDA_ERROR",
-        `Error al cargar archivo: ${mensajeError}`,
-        {
-          nombreArchivo: selectedFile?.name,
-          error: mensajeError,
-          tamanoArchivo: selectedFile?.size,
-        }
+      const conDatos = generados.filter(
+        ins => filasPorSlot[ins] > 0 || historial.some(h => h.insumo === ins && h.resultado === 'Exitoso')
       );
-
-      console.log("Registro de error:", registroError);
-    } finally {
-      setLoading(false);
+      if (conDatos.length > 0) setConfirmarTodos(conDatos);
+      else await subirArchivo('Todos');
+    } catch (err) {
+      setErrores([extractAxiosError(err)]);
     }
   };
 
-  const handleValidarArchivo = async () => {
-    if (!fileSummary) return;
-    setLoading(true);
-    setValidationErrors([]);
+  // Uses native fetch so the browser sets the correct multipart boundary automatically.
+  const subirArchivo = async (insumo: InsumoEnum) => {
+    if (!lote || !archivos[insumo]) return;
+    setSubiendoInsumo(insumo);
+    setErrores([]);
     try {
-      // TODO: Ejecutar validaciones en backend (recomendado). Aquí simulamos.
-      await new Promise((r) => setTimeout(r, 800));
-      // Simular error si no hay codigoEmpresa o fechas
-      const errors: string[] = [];
-      if (!fechaCargue) errors.push("Fecha de cargue es requerida");
-      if (!fechaCorte) errors.push("Fecha de corte es requerida");
-      if (!codigoEmpresa) errors.push("Código de universalidad esrequerido");
-      if (fileSummary.lines === 0) errors.push("El archivo no contiene líneas");
-      if (errors.length > 0) {
-        setValidationErrors(errors);
-        setStatus("Error");
-        return;
+      const fd = new FormData();
+      fd.append('insumo', insumo);
+      fd.append('archivo', archivos[insumo]!);
+      if (plantillaIds[insumo] !== '') fd.append('plantillaId', String(plantillaIds[insumo]));
+
+      const res = await fetchConToken(`/cargas/${lote.id}/archivos`, { method: 'POST', body: fd });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as Record<string, unknown>;
+        const msg = String(data?.mensaje ?? data ?? `Error HTTP ${res.status}`);
+        const faltantes = (data?.columnasFaltantes as string[] | undefined) ?? [];
+        throw new Error(faltantes.length ? `${msg} Columnas faltantes: ${faltantes.join(', ')}` : msg);
       }
-      setStatus("Validado");
+
+      if (insumo === 'Todos') {
+        // 001-999 responde un historial por slot llenado.
+        const llenados = ((await res.json().catch(() => [])) as HistorialArchivo[]).map(h => h.insumo);
+        await refrescarLote(lote.id);
+        setSnackMsg(`Archivo 001-999 cargado. Llenó: ${llenados.join(', ') || '—'}.`);
+      } else {
+        await refrescarLote(lote.id);
+        setSnackMsg('Archivo subido y parseado exitosamente.');
+      }
     } catch (err) {
-      console.error(err);
-      setValidationErrors(["Error durante la validación"]);
-      setStatus("Error");
+      setErrores([err instanceof Error ? err.message : 'Error al subir el archivo']);
+      // El backend registra el intento fallido en el historial; se refresca para mostrarlo.
+      await refrescarLote(lote.id).catch(() => {});
+    } finally {
+      setSubiendoInsumo(null);
+    }
+  };
+
+  const handleValidar = async () => {
+    if (!lote) return;
+    setLoading(true);
+    setErrores([]);
+    try {
+      const { data } = await axiosSecurityAPIClient.post<{ errores: number }>(`/cargas/${lote.id}/validar`);
+      await refrescarLote(lote.id);
+      // Con errores no hay mensaje de éxito: el panel de errores aparece con el detalle.
+      if (data.errores === 0) setSnackMsg('Validación sin errores. El lote se puede promover.');
+    } catch (err) {
+      setErrores([extractAxiosError(err)]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleProcesarArchivo = async () => {
-    if (!fileSummary) return;
+  const handlePromover = async () => {
+    if (!lote) return;
     setLoading(true);
-    setValidationErrors([]);
+    setErrores([]);
     try {
-      // TODO: Llamar endpoint que procesa filas / exporta a staging o MURIC
-      await new Promise((r) => setTimeout(r, 1200));
-      setStatus("Procesado");
+      await axiosSecurityAPIClient.post(`/cargas/${lote.id}/promover`);
+      await refrescarLote(lote.id);
+      setSnackMsg('Lote promovido exitosamente a las tablas MURIC.');
     } catch (err) {
-      console.error(err);
-      setValidationErrors(["Error al procesar el archivo"]);
-      setStatus("Error");
+      setErrores([extractAxiosError(err)]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleReversarArchivo = async () => {
-    if (!fileSummary) return;
+  const handleAnular = async () => {
+    if (!lote) return;
     setLoading(true);
-    setValidationErrors([]);
+    setErrores([]);
     try {
-      // TODO: Llamar API para reversar proceso (crear job de reversión)
-      await new Promise((r) => setTimeout(r, 800));
-      setStatus("Reversado");
+      await axiosSecurityAPIClient.post(`/cargas/${lote.id}/anular`);
+      await refrescarLote(lote.id);
+      setSnackMsg('Lote anulado.');
     } catch (err) {
-      console.error(err);
-      setValidationErrors(["Error al reversar el archivo"]);
-      setStatus("Error");
+      setErrores([extractAxiosError(err)]);
     } finally {
       setLoading(false);
     }
   };
+
+  // ─── Derived state ────────────────────────────────────────────────────────────
+
+  const canUpload    = !!lote && ESTADOS_CON_SUBIDA.includes(lote.estado);
+  const canValidar   = !!lote && ['Parseado', 'Validado'].includes(lote.estado);
+  const erroresBloqueantes = lote?.resumenErrores?.errores ?? 0;
+  // Los errores de validación (severidad Error) bloquean la promoción también en el backend.
+  const canPromover  = !!lote && lote.estado === 'Validado' && erroresBloqueantes === 0;
+  const canAnular    = !!lote && (ESTADOS_ACTIVOS as string[]).includes(lote.estado);
+  const isBusy       = loading || subiendoInsumo !== null;
+
+  // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Stack
-          direction="row"
-          alignItems="center"
-          spacing={2}
-          justifyContent="space-between"
-          mb={2}
-        >
-          <Typography variant="h6">Carga de Archivos</Typography>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Chip
-              icon={
-                status === "Error" ? (
-                  <ErrorOutlineIcon />
-                ) : status === "Procesado" ? (
-                  <CheckCircleOutlineIcon />
-                ) : (
-                  <CloudUploadOutlinedIcon />
-                )
-              }
-              label={status}
-              color={
-                status === "Error"
-                  ? "error"
-                  : status === "Procesado"
-                  ? "success"
-                  : "default"
-              }
-              variant="outlined"
-            />
-            <IconButton
-              size="small"
-              onClick={() => {
-                setSelectedFile(null);
-                setFileSummary(null);
-                setPreviewRows([]);
-                setProcessNumber(null);
-                setStatus("Sin archivo");
-                setValidationErrors([]);
-                setCodigoEmpresa("");
-                setNombreEmpresa("");
-              }}
-            >
-              <RestartAltIcon />
-            </IconButton>
-          </Stack>
-        </Stack>
+    <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
 
-        <Grid container spacing={2} alignItems="center">
-          <Grid size={12}>
-            <Box>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv, text/csv, .txt, .xlsx, .xls, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-                onChange={handleFileSelect}
-                style={{ display: "none" }}
-                data-testid="file-input"
+      {/* ── Header ── */}
+      <Paper sx={{ p: 2 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Typography variant="h6" fontWeight={700}>
+              Cargue de archivos MURIC
+            </Typography>
+            <ChipEntidadReportante />
+            {lote && (
+              <Chip label={`Lote #${lote.id}`} size="small" variant="outlined" color="primary" />
+            )}
+            {lote && (
+              <Chip
+                label={lote.estado}
+                size="small"
+                color={ESTADO_LOTE_COLOR[lote.estado] ?? 'default'}
               />
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Button
-                  startIcon={<CloudUploadOutlinedIcon />}
-                  variant="contained"
-                  onClick={openFilePicker}
-                >
-                  Seleccionar archivo
-                </Button>
-                <Typography variant="body2" color="text.secondary">
-                  {selectedFile
-                    ? `${selectedFile.name} (${selectedFile.size} bytes)`
-                    : "No hay archivo seleccionado"}
-                </Typography>
-              </Stack>
-            </Box>
-          </Grid>
-
-          <Grid size={2}>
-            <TextField
-              label="Fecha de cargue"
-              type="date"
-              fullWidth
-              value={fechaCargue}
-              onChange={(e) => setFechaCargue(e.target.value)}
-              slotProps={{
-                inputLabel: {
-                  shrink: true,
-                },
-              }}
-              sx={{
-                "& .MuiInputBase-input::-webkit-calendar-picker-indicator": {
-                  filter:
-                    "invert(65%) sepia(90%) saturate(3000%) hue-rotate(210deg) brightness(100%) contrast(120%)", // Azul
-                  cursor: "pointer",
-                },
-              }}
-            />
-          </Grid>
-
-          <Grid size={2}>
-            <TextField
-              label="Fecha de corte"
-              type="date"
-              fullWidth
-              value={fechaCorte}
-              onChange={(e) => setFechaCorte(e.target.value)}
-              slotProps={{
-                inputLabel: {
-                  shrink: true,
-                },
-              }}
-              sx={{
-                "& .MuiInputBase-input::-webkit-calendar-picker-indicator": {
-                  filter:
-                    "invert(65%) sepia(90%) saturate(3000%) hue-rotate(210deg) brightness(100%) contrast(120%)", // Azul
-                  cursor: "pointer",
-                },
-              }}
-            />
-          </Grid>
-
-          <Grid size={4}>
-            <FormControl fullWidth>
-              <InputLabel>Universalidad</InputLabel>
-              <Select
-                value={codigoEmpresa}
-                label="Universalidad"
-                onChange={(e) => handleEmpresaChange(e.target.value)}
-                disabled={loading}
-              >
-                {empresasPrueba.map((empresa) => (
-                  <MenuItem key={empresa.codigo} value={empresa.codigo}>
-                    {empresa.codigo} - {empresa.nombre}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-
-          <Grid size={1}>
-            <TextField
-              label="Nro. proceso"
-              fullWidth
-              value={processNumber ? String(processNumber) : ""}
-              slotProps={{ input: { readOnly: true } }}
-            />
-          </Grid>
-
-          <Grid size={1}>
-            <TextField
-              label="Estado"
-              fullWidth
-              value={status}
-              slotProps={{ input: { readOnly: true } }}
-            />
-          </Grid>
-
-          <Grid size={12}>
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              <Button
-                variant="contained"
-                onClick={handleCargarArchivo}
-                disabled={!selectedFile || loading}
-              >
-                Cargar archivo
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={handleValidarArchivo}
-                disabled={!fileSummary || loading}
-              >
-                Validar archivo
-              </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleProcesarArchivo}
-                disabled={status !== "Validado" || loading}
-              >
-                Procesar archivo
-              </Button>
-              <Button
-                variant="outlined"
-                color="warning"
-                onClick={handleReversarArchivo}
-                disabled={!fileSummary || loading}
-              >
-                Reversar archivo
-              </Button>
-            </Stack>
-          </Grid>
-        </Grid>
-
-        {loading && <LinearProgress sx={{ mt: 2 }} />}
-
-        {validationErrors.length > 0 && (
-          <Box sx={{ mt: 2 }}>
-            <Alert severity="error">
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                Errores:
-              </Typography>
-              <ul style={{ margin: 0, paddingLeft: 16 }}>
-                {validationErrors.map((err, i) => (
-                  <li key={i}>
-                    <Typography variant="body2">{err}</Typography>
-                  </li>
-                ))}
-              </ul>
-            </Alert>
-          </Box>
-        )}
-
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          display="block"
-          mt={1}
-        >
-          Soporta archivos CSV, TXT y Excel (.xlsx, .xls). Tamaño máximo: 10MB
-        </Typography>
+            )}
+          </Stack>
+          <Button size="small" startIcon={<ArrowBackIcon />} onClick={() => navigate('/app/lotes-carga')}>
+            Volver a la lista
+          </Button>
+        </Stack>
       </Paper>
 
-      {/* Información del archivo seleccionado */}
+      {cargandoLote && <LinearProgress />}
 
-      <Accordion>
-        <AccordionSummary
-          expandIcon={<ArrowDownwardIcon />}
-          aria-controls="panel1-content"
-          id="panel1-header"
-        >
-          <Typography variant="h6" color="text.secondary">
-            Información archivo seleccionado
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Paper sx={{ p: 2 }}>
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              mb={1}
+      {noEncontrado && (
+        <Alert severity="warning">El lote #{idParam} no existe.</Alert>
+      )}
+
+      {/* ── Step 1: Configuración del lote / resumen ── */}
+      {lote ? (
+        <Paper sx={{ p: 2 }}>
+          <ResumenLote lote={lote} />
+        </Paper>
+      ) : !idParam && (
+        <Paper sx={{ p: 2 }}>
+          {canWrite
+            ? <FormNuevoLote loading={loading} onCrear={handleCrearLote} />
+            : <Alert severity="info">No tiene permiso para crear lotes. Puede consultarlos en la lista.</Alert>}
+        </Paper>
+      )}
+
+      {lote && advertencia?.loteId === lote.id && (
+        <Alert severity="warning" onClose={() => setAdvertencia(null)}>{advertencia.texto}</Alert>
+      )}
+
+      {lote && !canWrite && (
+        <Alert severity="info">Solo consulta: no tiene permiso para modificar lotes.</Alert>
+      )}
+
+      {/* ── Step 2: Carga de archivos ── */}
+      {lote && canWrite && (
+        <PanelArchivos
+          archivos={archivos}
+          plantillasMap={plantillasMap}
+          plantillaIds={plantillaIds}
+          historial={historial}
+          subiendoInsumo={subiendoInsumo}
+          canUpload={canUpload}
+          aviso={lote.estado === 'Validado'
+            ? 'El lote ya está validado. Si sube un archivo, vuelve a Parseado y hay que validarlo de nuevo.'
+            : undefined}
+          isBusy={isBusy}
+          cargandoPlantillas={cargandoPlantillas}
+          onArchivo={(insumo, f) => setArchivos(prev => ({ ...prev, [insumo]: f }))}
+          onPlantilla={(insumo, id) => setPlantillaIds(prev => ({ ...prev, [insumo]: id }))}
+          onSubir={handleSubirArchivo}
+          confirmarTodos={confirmarTodos}
+          onCancelarTodos={() => setConfirmarTodos(null)}
+          onConfirmarTodos={() => {
+            setConfirmarTodos(null);
+            subirArchivo('Todos');
+          }}
+        />
+      )}
+
+      {/* ── Step 3: Validación y promoción ── */}
+      {lote && canWrite && (
+        <PanelAcciones
+          canValidar={canValidar}
+          canPromover={canPromover}
+          canAnular={canAnular}
+          isBusy={isBusy}
+          motivoNoPromover={lote.estado === 'Validado' && erroresBloqueantes > 0
+            ? `El lote tiene ${erroresBloqueantes} error(es) de validación.`
+            : undefined}
+          onValidar={handleValidar}
+          onPromover={() => setConfirmarAccion('promover')}
+          onAnular={() => setConfirmarAccion('anular')}
+        />
+      )}
+
+      {/* Promover y anular no se pueden deshacer (A1). */}
+      <DialogConfirmarAccion
+        open={confirmarAccion === 'promover'}
+        titulo={`Promover el lote #${lote?.id ?? ''}`}
+        mensaje="Los créditos, atributos y movimientos del lote pasan a las tablas MURIC. Esta acción no se puede deshacer."
+        textoConfirmar="Promover"
+        color="success"
+        onCancelar={() => setConfirmarAccion(null)}
+        onConfirmar={() => {
+          setConfirmarAccion(null);
+          handlePromover();
+        }}
+      />
+      <DialogConfirmarAccion
+        open={confirmarAccion === 'anular'}
+        titulo={`Anular el lote #${lote?.id ?? ''}`}
+        mensaje="El lote queda anulado: ya no se puede modificar, validar ni promover. Esta acción no se puede deshacer."
+        textoConfirmar="Anular"
+        color="error"
+        onCancelar={() => setConfirmarAccion(null)}
+        onConfirmar={() => {
+          setConfirmarAccion(null);
+          handleAnular();
+        }}
+      />
+
+      {/* ── Lote promovido: el envío es por fecha de corte ── */}
+      {lote?.estado === 'Promovido' && (
+        <Alert
+          severity="success"
+          action={canWrite && (
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => navigate(`/app/envio-muric?fechaCorte=${lote.fechaCorte}`)}
             >
-              <Typography variant="body2" color="text.secondary">
-                Preview: características del archivo
-              </Typography>
-            </Stack>
-            <Divider sx={{ mb: 2 }} />
+              Ir a Envío a MURIC
+            </Button>
+          )}
+        >
+          Lote promovido. El AVRO se genera y se transmite por fecha de corte ({lote.fechaCorte}), con todas
+          las universalidades del corte, en Envío a MURIC.
+        </Alert>
+      )}
 
-            <Grid container spacing={2}>
-              <Grid size={12}>
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Propiedad</TableCell>
-                        <TableCell>Valor</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell>Nombre archivo</TableCell>
-                        <TableCell>{fileSummary?.name ?? "-"}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Tamaño (bytes)</TableCell>
-                        <TableCell>{fileSummary?.sizeBytes ?? "-"}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Número de líneas</TableCell>
-                        <TableCell>{fileSummary?.lines ?? "-"}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Fecha de cargue</TableCell>
-                        <TableCell>{fechaCargue || "-"}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Fecha de corte</TableCell>
-                        <TableCell>{fechaCorte || "-"}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Código universalidad</TableCell>
-                        <TableCell>{codigoEmpresa || "-"}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Nombre universalidad</TableCell>
-                        <TableCell>{nombreEmpresa || "-"}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Proceso N°</TableCell>
-                        <TableCell>{processNumber ?? "-"}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Estado</TableCell>
-                        <TableCell>{status}</TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Grid>
+      {/* ── Loading bar ── */}
+      {(loading || (subiendoInsumo !== null)) && <LinearProgress />}
 
-              <Grid size={12}>
-                <TableContainer sx={{ maxHeight: 300 }}>
-                  <Table size="small" stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        {(previewRows[0]
-                          ? Object.keys(previewRows[0])
-                          : ["col1"]
-                        ).map((col) => (
-                          <TableCell key={col}>{col}</TableCell>
-                        ))}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {previewRows.length > 0 ? (
-                        previewRows.map((r, idx) => (
-                          <TableRow key={idx}>
-                            {Object.keys(r).map((k) => (
-                              <TableCell key={k}>{r[k]}</TableCell>
-                            ))}
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={10}>
-                            <Typography variant="body2" color="text.secondary">
-                              No hay datos de preview
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Grid>
-            </Grid>
-          </Paper>
-        </AccordionDetails>
-      </Accordion>
+      {/* ── Error display ── */}
+      {errores.length > 0 && (
+        <Alert
+          severity="error"
+          onClose={() => { setErrores([]); setLoteExistente(null); }}
+          action={loteExistente !== null && (
+            <Button color="inherit" size="small" onClick={() => navigate(`/app/carga-archivos/${loteExistente}`)}>
+              Abrir lote #{loteExistente}
+            </Button>
+          )}
+        >
+          <ul style={{ margin: 0, paddingLeft: 16 }}>
+            {errores.map((e, i) => <li key={i}>{e}</li>)}
+          </ul>
+        </Alert>
+      )}
 
-      {/* Resultados del proceso de cargue */}
-      <ResultadoCargue detalles={detallesCarga} />
+      {/* ── Errores de validación ── */}
+      {lote && (lote.resumenErrores?.total ?? 0) > 0 && (
+        <PanelErrores
+          loteId={lote.id}
+          total={lote.resumenErrores!.total}
+          errores={erroresBloqueantes}
+          version={lote}
+        />
+      )}
+
+      {/* ── Historial de archivos ── */}
+      {historial.length > 0 && <HistorialArchivos historial={historial} />}
+
+      {/* ── Success snackbar ── */}
+      <Snackbar
+        open={!!snackMsg}
+        autoHideDuration={5000}
+        onClose={() => setSnackMsg(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="success" onClose={() => setSnackMsg(null)} variant="filled">
+          {snackMsg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

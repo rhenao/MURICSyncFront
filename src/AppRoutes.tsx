@@ -29,15 +29,26 @@ import ListTipoPoliza from "./features/param/components/ListTipoPoliza";
 import ListTipoRecuperacion from "./features/param/components/ListTipoRecuperacion";
 import ListCanalDesembolso from "./features/param/components/ListCanalDesembolso";
 import ListCanalOriginacion from "./features/param/components/ListCanalOriginacion";
+import ListCatalogoAtributos from "./features/param/components/ListCatalogoAtributos";
 import ListPeriodicidad from "./features/param/components/ListPeriodicidad";
 import ListSexoBiologico from "./features/param/components/ListSexoBiologico";
 import ListTipoTasa from "./features/param/components/ListTipoTasa";
 import ListUsers from "./features/security/components/ListUsers";
+import ListRoles from "./features/security/components/ListRoles";
+import ListPermissions from "./features/security/components/ListPermissions";
 import PasswordChange from "./features/security/components/PasswordChange.tsx";
 import CargaArchivos from "./features/upload/components/CargaArchivos.tsx";
-import ConfigMapeoCarga from "./features/upload/components/ConfigMapeoCarga";
+import ListPlantillas from "./features/upload/components/ListPlantillas";
+import ListLotes from "./features/upload/components/ListLotes";
+import EnviaMURIC from "./features/submission/components/EnviaMURIC";
 import RequireAuth from "./features/auth/components/RequireAuth";
+import RequireRole from "./features/auth/components/RequireRole";
+import RequirePermission from "./features/auth/components/RequirePermission";
 import ListUniversalidades from "./features/param/components/ListUniversalidades.tsx";
+import ReporteUsuarios from "./features/security/components/ReporteUsuarios";
+import FormConfigSeguridad from "./features/security/components/FormConfigSeguridad";
+import AuditLogPage from "./features/audit/components/AuditLogPage";
+import Forbidden from "./components/Forbidden";
 
 export default function AppRoutes() {
   return (
@@ -148,6 +159,10 @@ export default function AppRoutes() {
           element={<ListCanalOriginacion />}
         />
         <Route
+          path="/app/lista-catalogo-atributos"
+          element={<ListCatalogoAtributos />}
+        />
+        <Route
           path="/app/lista-periodicidad"
           element={<ListPeriodicidad />}
         />
@@ -157,10 +172,91 @@ export default function AppRoutes() {
         />
         <Route path="/app/lista-universalidades" element={<ListUniversalidades />} />
         <Route path="/app/lista-tipo-tasa" element={<ListTipoTasa />} />
-        <Route path="/app/lista-usuarios" element={<ListUsers />} />
+        <Route
+          path="/app/lista-usuarios"
+          element={
+            <RequireRole allowedRoles={["ADMIN", "SEGURIDAD"]}>
+              <ListUsers />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/app/lista-roles"
+          element={
+            <RequirePermission requiredPermissions={["roles.manage"]}>
+              <ListRoles />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/app/lista-permisos"
+          element={
+            <RequirePermission requiredPermissions={["roles.manage"]}>
+              <ListPermissions />
+            </RequirePermission>
+          }
+        />
         <Route path="/app/cambiar-contrasena" element={<PasswordChange />} />
-        <Route path="/app/carga-archivos" element={<CargaArchivos />} />
-        <Route path="/config-mapeo-carga" element={<ConfigMapeoCarga />} />
+        <Route
+          path="/app/lotes-carga"
+          element={
+            <RequirePermission requiredPermissions={["cargas.read"]}>
+              <ListLotes />
+            </RequirePermission>
+          }
+        />
+        {/* Sin :id crea un lote; con :id abre uno. Una sola ruta para no remontar al crear. */}
+        <Route
+          path="/app/carga-archivos/:id?"
+          element={
+            <RequirePermission requiredPermissions={["cargas.read"]}>
+              <CargaArchivos />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/app/plantillas-carga"
+          element={
+            <RequirePermission requiredPermissions={["cargas.read"]}>
+              <ListPlantillas />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/app/envio-muric"
+          element={
+            <RequirePermission requiredPermissions={["cargas.write"]}>
+              <EnviaMURIC />
+            </RequirePermission>
+          }
+        />
+        {/* Consultas MURIC se retiró (decisión L2): su lista de lotes es Lotes de carga. */}
+        <Route path="/app/consultas-muric" element={<Navigate to="/app/lotes-carga" replace />} />
+        <Route
+          path="/app/reporte-usuarios"
+          element={
+            <RequirePermission requiredPermissions={["usuarios.read"]}>
+              <ReporteUsuarios />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/app/config-seguridad"
+          element={
+            <RequirePermission requiredPermissions={["seguridad.manage"]}>
+              <FormConfigSeguridad />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/app/audit-logs"
+          element={
+            <RequireRole allowedRoles={["ADMIN", "AuditViewer"]}>
+              <AuditLogPage />
+            </RequireRole>
+          }
+        />
+        <Route path="/app/forbidden" element={<Forbidden />} />
       </Route>
 
       {/* Catch all - redirect to login */}

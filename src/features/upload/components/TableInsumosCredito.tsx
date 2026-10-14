@@ -146,7 +146,7 @@ export default function TableInsumosCredito() {
       item.tipoCodigoProducto.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+  const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 

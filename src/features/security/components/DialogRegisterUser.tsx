@@ -19,6 +19,7 @@ import {
 } from "@mui/material";
 import type RegisterDto from "../models/RegisterDto";
 import axiosSecurityAPIClient from "../../../api/axiosSecurityAPIClient";
+import { PASSWORD_HELPER_TEXT, validatePasswordStrength } from "../utils/passwordPolicy";
 
 interface CrearUserProps {
   open: boolean;
@@ -78,8 +79,8 @@ export default function DialogRegisterUser({
       }
       if (!formData.password.trim()) {
         validationErrors.push("La contraseña es requerida");
-      } else if (formData.password.length < 6) {
-        validationErrors.push("La contraseña debe tener al menos 6 caracteres");
+      } else {
+        validationErrors.push(...validatePasswordStrength(formData.password));
       }
       if (formData.password !== formData.confirmPassword) {
         validationErrors.push("Las contraseñas no coinciden");
@@ -208,6 +209,7 @@ export default function DialogRegisterUser({
             required
             autoComplete="new-password"
             inputProps={{ maxLength: 100 }}
+            helperText={PASSWORD_HELPER_TEXT}
           />
 
           <TextField

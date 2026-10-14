@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getAuditContextHeaders } from './auditHeaders';
 
 const axiosSecurityAPIClient = axios.create({
     baseURL: import.meta.env.VITE_API_URL_SECURITY,
@@ -36,12 +37,16 @@ const limpiarAutenticacion = (): void => {
 // Interceptor para agregar el token a todas las peticiones (EXCEPTO login)
 axiosSecurityAPIClient.interceptors.request.use(
     (config) => {
+        const auditHeaders = getAuditContextHeaders();
+        config.headers['X-Timezone'] = auditHeaders['X-Timezone'];
+        config.headers['X-Screen-Size'] = auditHeaders['X-Screen-Size'];
+
         // NO agregar token si es una petición de login
         if (config.url?.includes('/auth/login')) {
             console.log("🔓 Petición de login, NO agregando token");
             return config;
         }
-        
+
         const token = obtenerToken();
         
         if (token && !tokenExpirado()) {

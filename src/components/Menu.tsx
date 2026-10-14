@@ -13,20 +13,22 @@ import {
   FileUpload,
   Summarize,
   SendAndArchive,
-  AccountTree,
   CloudUpload,
-  Info,
-  Assignment,
-  SwapHoriz,
-  FolderOpen,
-  ForwardToInbox,
+  FileCopy,
+  ViewList,
+  //FolderOpen,
+  //ForwardToInbox,
+  Assessment,
   Group,
+  ManageSearch,
+  Tune,
   VpnKey,
 } from "@mui/icons-material";
 import Logo from "./Logo";
 import { Box, Divider, styled, Typography } from "@mui/material";
 import theme from "../theme";
 import useAuth from "../features/auth/hooks/useAuth";
+import { usePermission } from "../features/auth/hooks/usePermission";
 
 const Banner = styled(Typography)(() => ({
   fontSize: 18,
@@ -56,23 +58,50 @@ export function Menu() {
   const [openSendMuric, setOpenSendMuric] = React.useState(false);
   const [openReports, setOpenReports] = React.useState(false);
   const { user } = useAuth();
+  const { hasPermission } = usePermission();
 
   const roles = user?.roles ?? [];
   const hasRole = (...r: string[]) => r.some((rol) => roles.includes(rol));
 
   const canAdmin = hasRole("ADMIN", "OPERADOR", "CONSULTA");
-  const canCargue = hasRole("ADMIN", "OPERADOR");
-  const canEnvio = hasRole("ADMIN", "OPERADOR");
-  const canConsultas = hasRole("ADMIN", "OPERADOR", "CONSULTA");
+  // Cargue, envío y consultas de lotes van por permiso, igual que sus rutas en AppRoutes.
+  const canCargue = hasPermission("cargas.write");
+  const canVerPlantillas = hasPermission("cargas.read");
+  const canVerLotes = hasPermission("cargas.read");
+  const canEnvio = hasPermission("cargas.write");
+  const canConsultas = hasPermission("cargas.read");
   const canAdminUsuarios = hasRole("ADMIN", "SEGURIDAD");
   const canCambioContrasena = hasRole("ADMIN", "OPERADOR", "SEGURIDAD", "CONSULTA");
-  const canSeguridad = canAdminUsuarios || canCambioContrasena;
+  const canGestionRoles = hasPermission("roles.manage");
+ 
+
+  const canReporteUsuarios = hasPermission("usuarios.read");
+  const canConfigSeguridad = hasPermission("seguridad.manage");
+  const canAuditLogs = hasRole("ADMIN", "AuditViewer");
+  const canSeguridad = canAdminUsuarios || canCambioContrasena || canGestionRoles || canReporteUsuarios || canConfigSeguridad || canAuditLogs;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Logo />
       <DividerLine />
-      <List component="nav" sx={{ width: "100%" }}>
+      <List
+        component="nav"
+        sx={{
+          width: "100%",
+          px: 0.5,
+          "& > .MuiListItemButton-root": {
+            minHeight: 42,
+            mb: 0.35,
+          },
+          "& .MuiCollapse-root .MuiListItemButton-root": {
+            minHeight: 36,
+            mb: 0.2,
+          },
+          "& .MuiListItemText-primary": {
+            lineHeight: 1.25,
+          },
+        }}
+      >
         <Banner></Banner>
         {/* Primer nivel: Administración - tablas básicas */}
         {canAdmin && (
@@ -120,6 +149,13 @@ export function Menu() {
               sx={{ pl: 15, py: 0.1 }}
             >
               <ListItemText primary="Canal de Originación" />
+            </ListItemButton>
+            <ListItemButton
+              component={NavLink}
+              to="/app/lista-catalogo-atributos"
+              sx={{ pl: 15, py: 0.1 }}
+            >
+              <ListItemText primary="Catálogo de Atributos" />
             </ListItemButton>
             <ListItemButton
               component={NavLink}
@@ -310,7 +346,7 @@ export function Menu() {
         )}
 
         {/* Primer nivel: Proceso de cargue de archivos */}
-        {canCargue && (
+        {(canCargue || canVerPlantillas || canVerLotes) && (
         <>
         <ListItemButton onClick={() => setOpenCargue(!openCargue)}>
           <ListItemIcon>
@@ -321,14 +357,27 @@ export function Menu() {
         </ListItemButton>
         <Collapse in={openCargue} timeout="auto" unmountOnExit>
           <List component="div" disablePadding dense>
+            {canVerPlantillas && (
             <ListItemButton
               component={NavLink}
-              to="/config-mapeo-carga"
+              to="/app/plantillas-carga"
               sx={{ pl: 6, py: 0.1 }}
             >
-              <ListItemIcon><AccountTree fontSize="small" color="primary" /></ListItemIcon>
-              <ListItemText primary="Configurar mapeo de carga" />
+              <ListItemIcon><FileCopy fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Plantillas de carga" />
             </ListItemButton>
+            )}
+            {canVerLotes && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/lotes-carga"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><ViewList fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Lotes de carga" />
+            </ListItemButton>
+            )}
+            {canCargue && (
             <ListItemButton
               component={NavLink}
               to="/app/carga-archivos"
@@ -337,6 +386,7 @@ export function Menu() {
               <ListItemIcon><CloudUpload fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Cargue de archivos" />
             </ListItemButton>
+            )}
           </List>
         </Collapse>
         </>
@@ -356,27 +406,11 @@ export function Menu() {
           <List component="div" disablePadding>
             <ListItemButton
               component={NavLink}
-              to="/app/muric001"
+              to="/app/envio-muric"
               sx={{ pl: 6, py: 0.1 }}
             >
-              <ListItemIcon><Info fontSize="small" color="primary" /></ListItemIcon>
-              <ListItemText primary="Información general de los créditos" />
-            </ListItemButton>
-            <ListItemButton
-              component={NavLink}
-              to="/app/muric002"
-              sx={{ pl: 6, py: 0.1 }}
-            >
-              <ListItemIcon><Assignment fontSize="small" color="primary" /></ListItemIcon>
-              <ListItemText primary="Atributos de los créditos y deudores" />
-            </ListItemButton>
-            <ListItemButton
-              component={NavLink}
-              to="/app/muric003"
-              sx={{ pl: 6, py: 0.1 }}
-            >
-              <ListItemIcon><SwapHoriz fontSize="small" color="primary" /></ListItemIcon>
-              <ListItemText primary="Movimientos de cartera" />
+              <ListItemIcon><SendAndArchive fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Formulario de envío a MURIC" />
             </ListItemButton>
           </List>
         </Collapse>
@@ -395,21 +429,21 @@ export function Menu() {
         </ListItemButton>
         <Collapse in={openReports} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
-            <ListItemButton
+            {/* <ListItemButton
               component={NavLink}
               to="/app/archivos-cargados"
               sx={{ pl: 6, py: 0.1 }}
             >
               <ListItemIcon><FolderOpen fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Archivos Cargados" />
-            </ListItemButton>
+            </ListItemButton> */}
             <ListItemButton
               component={NavLink}
-              to="/app/archivos-enviados"
+              to="/app/lotes-carga"
               sx={{ pl: 6, py: 0.1 }}
             >
-              <ListItemIcon><ForwardToInbox fontSize="small" color="primary" /></ListItemIcon>
-              <ListItemText primary="Archivos Enviados" />
+              <ListItemIcon><ViewList fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Lotes de carga" />
             </ListItemButton>
           </List>
         </Collapse>
@@ -448,6 +482,56 @@ export function Menu() {
             >
               <ListItemIcon><VpnKey fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Cambio de contraseña" />
+            </ListItemButton>
+            )}
+            {canGestionRoles && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/lista-roles"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><AdminPanelSettings fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Gestión de Roles" />
+            </ListItemButton>
+            )}
+            {canGestionRoles && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/lista-permisos"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><VpnKey fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Gestión de Permisos" />
+            </ListItemButton>
+            )}
+            {canReporteUsuarios && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/reporte-usuarios"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><Assessment fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Reporte de Usuarios" />
+            </ListItemButton>
+            )}
+            {canConfigSeguridad && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/config-seguridad"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><Tune fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Parámetros de Seguridad" />
+            </ListItemButton>
+            )}
+            {canAuditLogs && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/audit-logs"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><ManageSearch fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Logs de auditoría" />
             </ListItemButton>
             )}
           </List>

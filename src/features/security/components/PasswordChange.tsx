@@ -20,6 +20,7 @@ import {
 } from "@mui/icons-material";
 import { AxiosError } from "axios";
 import AuthService from "../services/AuthService";
+import { PASSWORD_HELPER_TEXT, validatePasswordStrength } from "../utils/passwordPolicy";
 
 interface PasswordData {
   currentPassword: string;
@@ -66,10 +67,8 @@ export default function PasswordChange() {
 
     if (!formData.newPassword.trim()) {
       validationErrors.push("La nueva contraseña es requerida");
-    } else if (formData.newPassword.length < 6) {
-      validationErrors.push(
-        "La nueva contraseña debe tener al menos 6 caracteres"
-      );
+    } else {
+      validationErrors.push(...validatePasswordStrength(formData.newPassword));
     }
 
     if (!formData.confirmPassword.trim()) {
@@ -104,9 +103,6 @@ export default function PasswordChange() {
       }
 
       // TODO: Implementar llamada a la API
-      console.log("Cambiando contraseña para usuario actual:", currentUser?.id);
-      console.log("Contraseña actual:", formData.currentPassword);
-      console.log("Nueva contraseña:", formData.newPassword);
 
       // Simulación de llamada a API
       // await UserService.changeMyPassword({
@@ -252,7 +248,7 @@ export default function PasswordChange() {
                 </InputAdornment>
               ),
             }}
-            helperText="La contraseña debe tener al menos 6 caracteres"
+            helperText={PASSWORD_HELPER_TEXT}
           />
 
           <TextField

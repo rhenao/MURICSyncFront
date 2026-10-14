@@ -19,6 +19,8 @@ export interface AuthContextValue {
   authLoading: boolean;
   login: (credentials: LoginRequest) => Promise<AuthResponseDto>;
   logout: () => void;
+  hasPermission: (code: string) => boolean;
+  hasAnyPermission: (codes: string[]) => boolean;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -69,6 +71,17 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(null);
   }, []);
 
+  const hasPermission = useCallback(
+    (code: string): boolean => user?.permissions?.includes(code) ?? false,
+    [user]
+  );
+
+  const hasAnyPermission = useCallback(
+    (codes: string[]): boolean =>
+      codes.some((code) => user?.permissions?.includes(code) ?? false),
+    [user]
+  );
+
   const value = useMemo(
     () => ({
       isAuthenticated,
@@ -77,8 +90,10 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       authLoading,
       login,
       logout,
+      hasPermission,
+      hasAnyPermission,
     }),
-    [authLoading, initializing, isAuthenticated, login, logout, user]
+    [authLoading, initializing, isAuthenticated, login, logout, user, hasPermission, hasAnyPermission]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

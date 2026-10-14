@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getAuditContextHeaders } from './auditHeaders';
 
 const axiosOdataAPIClient = axios.create({
     baseURL: import.meta.env.VITE_API_URL,
@@ -34,8 +35,12 @@ const limpiarAutenticacion = (): void => {
 // Interceptor para agregar el token a todas las peticiones
 axiosOdataAPIClient.interceptors.request.use(
     (config) => {
+        const auditHeaders = getAuditContextHeaders();
+        config.headers['X-Timezone'] = auditHeaders['X-Timezone'];
+        config.headers['X-Screen-Size'] = auditHeaders['X-Screen-Size'];
+
         const token = obtenerToken();
-        
+
         if (token && !tokenExpirado()) {
             config.headers.Authorization = `Bearer ${token}`;
         } else if (token && tokenExpirado()) {
@@ -44,7 +49,7 @@ axiosOdataAPIClient.interceptors.request.use(
             window.location.href = '/login';
             return Promise.reject(new Error('Token expirado'));
         }
-        
+
         return config;
     },
     (error) => {

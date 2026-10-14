@@ -11,6 +11,7 @@
 Este documento describe la arquitectura técnica, configuración, estructura del código, y flujos principales del frontend **MuricSync FrontEnd**.
 
 Incluye:
+
 - Cómo instalar, ejecutar y construir el proyecto.
 - Variables de entorno requeridas.
 - Ruteo, layout y tema (MUI).

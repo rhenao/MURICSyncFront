@@ -18,6 +18,7 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import axiosSecurityAPIClient from '../../../../api/axiosSecurityAPIClient';
 import { fetchConToken } from '../../../../api/fetchConToken';
 import { extractBackendErrors } from '../../../../utils/extractBackendErrors';
+import PanelCodigosInvalidos from './PanelCodigosInvalidos';
 
 interface ErrorValidacion {
   id: number;
@@ -39,10 +40,24 @@ interface PanelErroresProps {
   errores: number;
   // Cambia cada vez que se recarga el lote (subir, validar): vuelve a pedir los errores.
   version: unknown;
+  // Para crear equivalencias desde los códigos no válidos y volver a validar (fase EQ-D).
+  canWrite: boolean;
+  canValidar: boolean;
+  isBusy: boolean;
+  onValidar: () => void;
 }
 
 /** Errores de validación por celda (ADR 0007): fila, campo, valor, regla y mensaje. */
-export default function PanelErrores({ loteId, total, errores, version }: PanelErroresProps) {
+export default function PanelErrores({
+  loteId,
+  total,
+  errores,
+  version,
+  canWrite,
+  canValidar,
+  isBusy,
+  onValidar,
+}: PanelErroresProps) {
   const [filas, setFilas] = useState<ErrorValidacion[]>([]);
   const [cargando, setCargando] = useState(false);
   const [exportando, setExportando] = useState(false);
@@ -103,9 +118,20 @@ export default function PanelErrores({ loteId, total, errores, version }: PanelE
 
       {errores > 0 && (
         <Alert severity="error" sx={{ mb: 1.5 }}>
-          Los errores bloquean la promoción. Corrija los archivos, vuelva a subirlos y valide de nuevo.
+          Los errores bloquean la promoción. Corrija los archivos y vuelva a subirlos, o cree equivalencias
+          para los códigos no válidos, y valide de nuevo.
         </Alert>
       )}
+
+      <PanelCodigosInvalidos
+        loteId={loteId}
+        version={version}
+        canWrite={canWrite}
+        canValidar={canValidar}
+        isBusy={isBusy}
+        onValidar={onValidar}
+      />
+
       {falla && <Alert severity="error" sx={{ mb: 1.5 }}>{falla}</Alert>}
       {cargando && <LinearProgress sx={{ mb: 1 }} />}
       {total > filas.length && !cargando && (

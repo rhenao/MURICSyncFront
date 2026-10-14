@@ -34,6 +34,19 @@ export interface CatalogoEquivalencia {
   valores: ValorCatalogo[];
 }
 
+/**
+ * Valor de un lote que no es código de su catálogo (GET /cargas/{id}/codigos-invalidos), agrupado por
+ * catálogo y valor normalizado: una equivalencia lo resuelve en todas sus filas.
+ */
+export interface CodigoInvalido {
+  catalogo: string;
+  catalogoNombre: string;
+  valor: string;
+  valorNormalizado: string;
+  campos: string[]; // "001-001 tipo_identificacion", "001-002 atributo_5"…
+  filas: number;
+}
+
 /** Valores precargados al crear una equivalencia desde un lote (fase EQ-D). */
 export interface EquivalenciaInicial {
   catalogo: string;

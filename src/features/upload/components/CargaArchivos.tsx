@@ -487,6 +487,10 @@ export default function CargaArchivos() {
           total={lote.resumenErrores!.total}
           errores={erroresBloqueantes}
           version={lote}
+          canWrite={canWrite}
+          canValidar={canValidar}
+          isBusy={isBusy}
+          onValidar={handleValidar}
         />
       )}
 

@@ -1,6 +1,7 @@
 import axiosSecurityAPIClient from '../../../api/axiosSecurityAPIClient';
 import type {
   CatalogoEquivalencia,
+  CodigoInvalido,
   Equivalencia,
   EquivalenciaRequest,
 } from '../models/Equivalencia.model';
@@ -31,6 +32,12 @@ const EquivalenciaService = {
 
   async eliminar(id: number): Promise<void> {
     await axiosSecurityAPIClient.delete(`/equivalencias/${id}`);
+  },
+
+  /** Valores del lote que no son código de su catálogo, para crearles equivalencia (cargas.read). */
+  async codigosInvalidos(loteId: number): Promise<CodigoInvalido[]> {
+    const { data } = await axiosSecurityAPIClient.get<CodigoInvalido[]>(`/cargas/${loteId}/codigos-invalidos`);
+    return Array.isArray(data) ? data : [];
   },
 };
 

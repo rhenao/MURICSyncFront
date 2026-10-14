@@ -15,6 +15,7 @@ import {
   SendAndArchive,
   CloudUpload,
   FileCopy,
+  SwapHoriz,
   ViewList,
   //FolderOpen,
   //ForwardToInbox,
@@ -365,6 +366,16 @@ export function Menu() {
             >
               <ListItemIcon><FileCopy fontSize="small" color="primary" /></ListItemIcon>
               <ListItemText primary="Plantillas de carga" />
+            </ListItemButton>
+            )}
+            {canVerPlantillas && (
+            <ListItemButton
+              component={NavLink}
+              to="/app/equivalencias-carga"
+              sx={{ pl: 6, py: 0.1 }}
+            >
+              <ListItemIcon><SwapHoriz fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText primary="Equivalencias de carga" />
             </ListItemButton>
             )}
             {canVerLotes && (

@@ -39,6 +39,7 @@ import ListPermissions from "./features/security/components/ListPermissions";
 import PasswordChange from "./features/security/components/PasswordChange.tsx";
 import CargaArchivos from "./features/upload/components/CargaArchivos.tsx";
 import ListPlantillas from "./features/upload/components/ListPlantillas";
+import ListEquivalencias from "./features/upload/components/ListEquivalencias";
 import ListLotes from "./features/upload/components/ListLotes";
 import EnviaMURIC from "./features/submission/components/EnviaMURIC";
 import RequireAuth from "./features/auth/components/RequireAuth";
@@ -219,6 +220,14 @@ export default function AppRoutes() {
           element={
             <RequirePermission requiredPermissions={["cargas.read"]}>
               <ListPlantillas />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/app/equivalencias-carga"
+          element={
+            <RequirePermission requiredPermissions={["cargas.read"]}>
+              <ListEquivalencias />
             </RequirePermission>
           }
         />

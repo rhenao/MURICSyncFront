@@ -24,7 +24,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import type { Equivalencia } from '../models/Equivalencia.model';
+import { claveAmbito, type Equivalencia } from '../models/Equivalencia.model';
 import { useEquivalencias } from '../hooks/useEquivalencias';
 import EquivalenciaService from '../services/EquivalenciaService';
 import DialogEquivalencia from './DialogEquivalencia';
@@ -44,7 +44,7 @@ interface ConfirmDeleteState {
 const celdaCsv = (v: string | null | undefined) => `"${(v ?? '').replace(/"/g, '""')}"`;
 
 function exportarCsv(filas: Equivalencia[]) {
-  const encabezado = ['Catálogo', 'Valor original', 'Código', 'Descripción', 'Observaciones', 'Usuario', 'Fecha'];
+  const encabezado = ['Catálogo o campo', 'Valor original', 'Valor SFC', 'Descripción', 'Observaciones', 'Usuario', 'Fecha'];
   const lineas = filas.map(e =>
     [
       e.catalogoNombre,
@@ -88,7 +88,7 @@ export default function ListEquivalencias() {
   } | null>(null);
 
   const datosFiltrados = useMemo(
-    () => equivalencias.filter(e => filtroCatalogo === TODOS || e.catalogo === filtroCatalogo),
+    () => equivalencias.filter(e => filtroCatalogo === TODOS || claveAmbito(e) === filtroCatalogo),
     [equivalencias, filtroCatalogo]
   );
 
@@ -140,8 +140,18 @@ export default function ListEquivalencias() {
   const columns: MRT_ColumnDef<Equivalencia>[] = [
     {
       accessorKey: 'catalogoNombre',
-      header: 'Catálogo',
+      header: 'Catálogo o campo',
       size: 200,
+      Cell: ({ row }) => (
+        <Stack spacing={0.25}>
+          <Typography variant="body2">{row.original.catalogoNombre}</Typography>
+          {row.original.campo && (
+            <Typography variant="caption" color="text.secondary">
+              Campo {row.original.campo}
+            </Typography>
+          )}
+        </Stack>
+      ),
     },
     {
       accessorKey: 'valorOriginal',
@@ -155,10 +165,15 @@ export default function ListEquivalencias() {
     },
     {
       accessorKey: 'codigo',
-      header: 'Código SFC',
+      header: 'Valor SFC',
       size: 280,
       Cell: ({ row }) =>
-        row.original.codigoDescripcion !== null ? (
+        // Por campo no hay descripción: el valor es un número o una fecha.
+        row.original.campo ? (
+          <Typography variant="body2">
+            <strong>{row.original.codigo}</strong>
+          </Typography>
+        ) : row.original.codigoDescripcion !== null ? (
           <Typography variant="body2">
             <strong>{row.original.codigo}</strong> – {row.original.codigoDescripcion}
           </Typography>
@@ -244,9 +259,10 @@ export default function ListEquivalencias() {
   return (
     <Card sx={cardSx}>
       <Alert severity="info" sx={{ mb: 1 }}>
-        Traducen el valor que trae el archivo del cliente al código SFC del catálogo. El valor se compara sin
-        tildes, mayúsculas ni espacios de más. Si un valor tiene equivalencia, se usa su código aunque el valor
-        ya sea un código SFC. Las equivalencias se aplican al validar y promover el lote.
+        Traducen el valor que trae el archivo del cliente al código SFC de un catálogo o, en algunos campos sin
+        catálogo, a un número o una fecha (por ejemplo "NO APLICA" → 0 en el spread). El valor se compara sin
+        tildes, mayúsculas ni espacios de más. Si un valor tiene equivalencia, se usa aunque el valor ya sea
+        válido. Las equivalencias se aplican al validar y promover el lote.
       </Alert>
 
       <MaterialReactTable
@@ -299,14 +315,14 @@ export default function ListEquivalencias() {
                 <TextField
                   select
                   size="small"
-                  label="Catálogo"
+                  label="Catálogo o campo"
                   value={filtroCatalogo}
                   onChange={e => setFiltroCatalogo(e.target.value)}
                   sx={{ minWidth: 220 }}
                 >
-                  <MenuItem value={TODOS}>Todos los catálogos</MenuItem>
+                  <MenuItem value={TODOS}>Todos</MenuItem>
                   {catalogos.map(c => (
-                    <MenuItem key={c.catalogo} value={c.catalogo}>
+                    <MenuItem key={claveAmbito(c)} value={claveAmbito(c)}>
                       {c.nombre}
                     </MenuItem>
                   ))}

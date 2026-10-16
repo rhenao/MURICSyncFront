@@ -9,12 +9,15 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  ListSubheader,
   MenuItem,
   Stack,
   TextField,
 } from '@mui/material';
 import {
+  claveAmbito,
   normalizarValor,
+  validarValorDestino,
   type CatalogoEquivalencia,
   type Equivalencia,
   type EquivalenciaInicial,
@@ -27,8 +30,9 @@ interface DialogEquivalenciaProps {
   open: boolean;
   /** En edición, la equivalencia a cambiar; null para crear. */
   equivalencia: Equivalencia | null;
-  /** Al crear desde un lote (fase EQ-D): catálogo y valor ya puestos. */
+  /** Al crear desde un lote (fase EQ-D): catálogo o campo y valor ya puestos. */
   inicial?: EquivalenciaInicial | null;
+  /** Catálogos y campos que aceptan equivalencias (GET /equivalencias/catalogos). */
   catalogos: CatalogoEquivalencia[];
   onClose: () => void;
   onSaved: (equivalencia: Equivalencia) => void;
@@ -51,7 +55,7 @@ export default function DialogEquivalencia({
 }: DialogEquivalenciaProps) {
   const editando = equivalencia !== null;
 
-  const [catalogo, setCatalogo] = useState('');
+  const [ambito, setAmbito] = useState(''); // claveAmbito del catálogo o campo elegido
   const [valorOriginal, setValorOriginal] = useState('');
   const [codigo, setCodigo] = useState<string | null>(null);
   const [observaciones, setObservaciones] = useState('');
@@ -64,7 +68,8 @@ export default function DialogEquivalencia({
 
   useEffect(() => {
     if (!open) return;
-    setCatalogo(equivalencia?.catalogo ?? inicial?.catalogo ?? '');
+    const origen = equivalencia ?? inicial;
+    setAmbito(origen ? claveAmbito(origen) : '');
     setValorOriginal(equivalencia?.valorOriginal ?? inicial?.valorOriginal ?? '');
     setCodigo(equivalencia?.codigo ?? null);
     setObservaciones(equivalencia?.observaciones ?? '');
@@ -75,15 +80,18 @@ export default function DialogEquivalencia({
   }, [open, equivalencia, inicial, editando]);
 
   const definicion = useMemo(
-    () => catalogos.find(c => c.catalogo === catalogo) ?? null,
-    [catalogos, catalogo]
+    () => catalogos.find(c => claveAmbito(c) === ambito) ?? null,
+    [catalogos, ambito]
   );
-  const opciones = definicion?.valores ?? [];
+  const esCatalogo = definicion?.tipoValor === 'codigo';
+  const opciones = esCatalogo ? definicion.valores : [];
+  const deCatalogo = catalogos.filter(c => c.tipoValor === 'codigo');
+  const deCampo = catalogos.filter(c => c.tipoValor !== 'codigo');
   const normalizado = normalizarValor(valorOriginal);
 
-  // Sugerencia por descripción mientras el usuario no haya elegido un código.
+  // Sugerencia por descripción mientras el usuario no haya elegido un código (solo catálogos).
   useEffect(() => {
-    if (codigoTocado || !definicion) return;
+    if (codigoTocado || !definicion || definicion.tipoValor !== 'codigo') return;
     const coincide = normalizado
       ? definicion.valores.find(v => normalizarValor(v.descripcion) === normalizado)
       : undefined;
@@ -102,11 +110,15 @@ export default function DialogEquivalencia({
 
   const validar = () => {
     const errs: Record<string, string> = {};
-    if (!catalogo) errs.catalogo = 'Seleccione el catálogo.';
+    if (!definicion) errs.ambito = 'Seleccione el catálogo o el campo.';
     if (!normalizado) errs.valorOriginal = 'El valor original es obligatorio.';
     else if (valorOriginal.trim().length > MAX_VALOR)
       errs.valorOriginal = `Máximo ${MAX_VALOR} caracteres.`;
-    if (!codigo) errs.codigo = 'Seleccione el código SFC.';
+    if (!codigo?.trim()) errs.codigo = esCatalogo ? 'Seleccione el código SFC.' : 'Escriba el valor que se usará.';
+    else if (definicion) {
+      const formato = validarValorDestino(definicion.tipoValor, codigo);
+      if (formato) errs.codigo = formato;
+    }
     if (observaciones.length > MAX_OBSERVACIONES)
       errs.observaciones = `Máximo ${MAX_OBSERVACIONES} caracteres.`;
     setErroresCampo(errs);
@@ -114,13 +126,14 @@ export default function DialogEquivalencia({
   };
 
   const handleGuardar = async () => {
-    if (guardando || !validar()) return;
+    if (guardando || !validar() || !definicion) return;
     setGuardando(true);
     setErrores([]);
     const request = {
-      catalogo,
+      catalogo: definicion.catalogo,
+      campo: definicion.campo,
       valorOriginal: valorOriginal.trim(),
-      codigo: codigo!,
+      codigo: codigo!.trim(),
       observaciones: observaciones.trim() || null,
     };
     try {
@@ -135,7 +148,7 @@ export default function DialogEquivalencia({
         return;
       }
       const mensajes = extractBackendErrors(err, 'No se pudo guardar la equivalencia.');
-      // 409: el valor ya tiene equivalencia en ese catálogo; el campo a cambiar es el valor.
+      // 409: el valor ya tiene equivalencia en ese catálogo o campo; el campo a cambiar es el valor.
       if (status === 409) setErroresCampo({ valorOriginal: mensajes[0] });
       else setErrores(mensajes);
     } finally {
@@ -146,6 +159,10 @@ export default function DialogEquivalencia({
   const handleClose = () => {
     if (!guardando) onClose();
   };
+
+  const ayudaCodigo = definicion?.tipoValor === 'fecha'
+    ? 'Fecha AAAA-MM-DD (también DD/MM/AAAA o AAAAMMDD).'
+    : 'Número con punto decimal y sin separador de miles, por ejemplo 0.';
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
@@ -161,24 +178,33 @@ export default function DialogEquivalencia({
         <Stack spacing={2} sx={{ pt: 1 }}>
           <TextField
             select
-            label="Catálogo"
-            value={catalogo}
+            label="Catálogo o campo"
+            value={definicion ? ambito : ''}
             onChange={e => {
-              setCatalogo(e.target.value);
+              setAmbito(e.target.value);
               setCodigo(null);
               setCodigoTocado(false);
-              limpiarError('catalogo');
+              setSugerido(false);
+              limpiarError('ambito');
+              limpiarError('codigo');
             }}
-            error={!!erroresCampo.catalogo}
+            error={!!erroresCampo.ambito}
             helperText={
-              erroresCampo.catalogo ??
+              erroresCampo.ambito ??
               (definicion?.campos.length ? `Se usa en: ${definicion.campos.join(', ')}` : ' ')
             }
             size="small"
             required
           >
-            {catalogos.map(c => (
-              <MenuItem key={c.catalogo} value={c.catalogo}>
+            <ListSubheader>Catálogos (código SFC)</ListSubheader>
+            {deCatalogo.map(c => (
+              <MenuItem key={claveAmbito(c)} value={claveAmbito(c)}>
+                {c.nombre}
+              </MenuItem>
+            ))}
+            <ListSubheader>Campos sin catálogo</ListSubheader>
+            {deCampo.map(c => (
+              <MenuItem key={claveAmbito(c)} value={claveAmbito(c)}>
                 {c.nombre}
               </MenuItem>
             ))}
@@ -201,34 +227,51 @@ export default function DialogEquivalencia({
             required
           />
 
-          <Autocomplete
-            options={opciones}
-            value={opciones.find(v => v.codigo === codigo) ?? null}
-            onChange={(_, v) => {
-              setCodigo(v?.codigo ?? null);
-              setCodigoTocado(true);
-              setSugerido(false);
-              limpiarError('codigo');
-            }}
-            getOptionLabel={etiquetaCodigo}
-            isOptionEqualToValue={(a, b) => a.codigo === b.codigo}
-            disabled={!definicion}
-            size="small"
-            renderInput={params => (
-              <TextField
-                {...params}
-                label="Código SFC"
-                required
-                error={!!erroresCampo.codigo}
-                helperText={
-                  erroresCampo.codigo ??
-                  (sugerido ? 'Sugerido por la descripción del catálogo. Confírmelo al guardar.' : ' ')
-                }
-                color={sugerido ? 'warning' : undefined}
-                focused={sugerido || undefined}
-              />
-            )}
-          />
+          {!definicion || esCatalogo ? (
+            <Autocomplete
+              options={opciones}
+              value={opciones.find(v => v.codigo === codigo) ?? null}
+              onChange={(_, v) => {
+                setCodigo(v?.codigo ?? null);
+                setCodigoTocado(true);
+                setSugerido(false);
+                limpiarError('codigo');
+              }}
+              getOptionLabel={etiquetaCodigo}
+              isOptionEqualToValue={(a, b) => a.codigo === b.codigo}
+              disabled={!definicion}
+              size="small"
+              renderInput={params => (
+                <TextField
+                  {...params}
+                  label="Código SFC"
+                  required
+                  error={!!erroresCampo.codigo}
+                  helperText={
+                    erroresCampo.codigo ??
+                    (sugerido ? 'Sugerido por la descripción del catálogo. Confírmelo al guardar.' : ' ')
+                  }
+                  color={sugerido ? 'warning' : undefined}
+                  focused={sugerido || undefined}
+                />
+              )}
+            />
+          ) : (
+            <TextField
+              label={definicion.tipoValor === 'fecha' ? 'Fecha que se usará' : 'Valor que se usará'}
+              value={codigo ?? ''}
+              onChange={e => {
+                setCodigo(e.target.value);
+                setCodigoTocado(true);
+                limpiarError('codigo');
+              }}
+              error={!!erroresCampo.codigo}
+              helperText={erroresCampo.codigo ?? ayudaCodigo}
+              inputProps={{ maxLength: 20 }}
+              size="small"
+              required
+            />
+          )}
 
           <TextField
             label="Observaciones"

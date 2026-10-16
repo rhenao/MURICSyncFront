@@ -16,11 +16,13 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import type {
-  CatalogoEquivalencia,
-  CodigoInvalido,
-  Equivalencia,
-  EquivalenciaInicial,
+import {
+  claveAmbito,
+  type Ambito,
+  type CatalogoEquivalencia,
+  type CodigoInvalido,
+  type Equivalencia,
+  type EquivalenciaInicial,
 } from '../../models/Equivalencia.model';
 import EquivalenciaService from '../../services/EquivalenciaService';
 import DialogEquivalencia from '../DialogEquivalencia';
@@ -36,10 +38,11 @@ interface PanelCodigosInvalidosProps {
   onValidar: () => void;
 }
 
-const clave = (catalogo: string, valorNormalizado: string) => `${catalogo}|${valorNormalizado}`;
+const clave = (ambito: Ambito, valorNormalizado: string) => `${claveAmbito(ambito)}|${valorNormalizado}`;
 
 /**
- * Valores del lote que no son código de su catálogo (regla CATALOGO-CODIGO-INVALIDO), agrupados por valor,
+ * Valores del lote que no son código de su catálogo (regla CATALOGO-CODIGO-INVALIDO) o que no tienen el formato de
+ * un campo que acepta equivalencias (CC-C del plan de consistencia de cargues), agrupados por valor,
  * con creación rápida de la equivalencia. Las equivalencias se aplican al validar: no hace falta volver a
  * subir el archivo (plan de equivalencias de carga, fase EQ-D).
  */
@@ -84,11 +87,11 @@ export default function PanelCodigosInvalidos({
   if (!cargando && !falla && filas.length === 0) return null;
 
   const handleGuardada = (eq: Equivalencia) => {
-    setCreadas(m => new Map(m).set(clave(eq.catalogo, eq.valorNormalizado), eq));
+    setCreadas(m => new Map(m).set(clave(eq, eq.valorNormalizado), eq));
     setInicial(null);
   };
 
-  const pendientes = filas.filter(f => !creadas.has(clave(f.catalogo, f.valorNormalizado))).length;
+  const pendientes = filas.filter(f => !creadas.has(clave(f, f.valorNormalizado))).length;
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -99,7 +102,8 @@ export default function PanelCodigosInvalidos({
         <Chip label={`${filas.length} valor${filas.length !== 1 ? 'es' : ''}`} size="small" variant="outlined" />
       </Stack>
       <Typography variant="body2" color="text.secondary" mb={1}>
-        Valores del archivo que no son un código del catálogo SFC. Corríjalos en el archivo o cree una equivalencia:
+        Valores del archivo que no son un código del catálogo SFC, o que no tienen el formato de un campo que acepta
+        equivalencias (como "NO APLICA" en el spread). Corríjalos en el archivo o cree una equivalencia:
         una equivalencia resuelve el valor en todas sus filas.
       </Typography>
 
@@ -130,7 +134,7 @@ export default function PanelCodigosInvalidos({
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell>Catálogo</TableCell>
+                <TableCell>Catálogo o campo</TableCell>
                 <TableCell>Valor</TableCell>
                 <TableCell>Campos</TableCell>
                 <TableCell align="right">Filas</TableCell>
@@ -139,9 +143,9 @@ export default function PanelCodigosInvalidos({
             </TableHead>
             <TableBody>
               {filas.map(f => {
-                const creada = creadas.get(clave(f.catalogo, f.valorNormalizado));
+                const creada = creadas.get(clave(f, f.valorNormalizado));
                 return (
-                  <TableRow key={clave(f.catalogo, f.valorNormalizado)}>
+                  <TableRow key={clave(f, f.valorNormalizado)}>
                     <TableCell>{f.catalogoNombre}</TableCell>
                     <TableCell sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>{f.valor}</TableCell>
                     <TableCell>
@@ -164,7 +168,7 @@ export default function PanelCodigosInvalidos({
                           <Button
                             size="small"
                             startIcon={<AddIcon />}
-                            onClick={() => setInicial({ catalogo: f.catalogo, valorOriginal: f.valor })}
+                            onClick={() => setInicial({ catalogo: f.catalogo, campo: f.campo, valorOriginal: f.valor })}
                             disabled={catalogos.length === 0}
                           >
                             Crear equivalencia

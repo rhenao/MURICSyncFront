@@ -4,11 +4,13 @@ import {
   Alert,
   Autocomplete,
   Button,
+  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   ListSubheader,
   MenuItem,
   Stack,
@@ -62,6 +64,8 @@ export default function DialogEquivalencia({
   // EQ4: el código cuya descripción coincide con el valor se propone, pero el usuario lo confirma al guardar.
   const [sugerido, setSugerido] = useState(false);
   const [codigoTocado, setCodigoTocado] = useState(false);
+  // Campo opcional: la equivalencia puede dejarlo sin valor ("N/D" → vacío); se guarda con código "".
+  const [dejarVacio, setDejarVacio] = useState(false);
   const [erroresCampo, setErroresCampo] = useState<Record<string, string>>({});
   const [errores, setErrores] = useState<string[]>([]);
   const [guardando, setGuardando] = useState(false);
@@ -72,6 +76,7 @@ export default function DialogEquivalencia({
     setAmbito(origen ? claveAmbito(origen) : '');
     setValorOriginal(equivalencia?.valorOriginal ?? inicial?.valorOriginal ?? '');
     setCodigo(equivalencia?.codigo ?? null);
+    setDejarVacio(!!equivalencia?.campo && equivalencia.codigo === '');
     setObservaciones(equivalencia?.observaciones ?? '');
     setSugerido(false);
     setCodigoTocado(editando);
@@ -84,6 +89,8 @@ export default function DialogEquivalencia({
     [catalogos, ambito]
   );
   const esCatalogo = definicion?.tipoValor === 'codigo';
+  const admiteVacio = !!definicion && !esCatalogo && !definicion.obligatorio;
+  const vacio = admiteVacio && dejarVacio;
   const opciones = esCatalogo ? definicion.valores : [];
   const deCatalogo = catalogos.filter(c => c.tipoValor === 'codigo');
   const deCampo = catalogos.filter(c => c.tipoValor !== 'codigo');
@@ -114,8 +121,15 @@ export default function DialogEquivalencia({
     if (!normalizado) errs.valorOriginal = 'El valor original es obligatorio.';
     else if (valorOriginal.trim().length > MAX_VALOR)
       errs.valorOriginal = `Máximo ${MAX_VALOR} caracteres.`;
-    if (!codigo?.trim()) errs.codigo = esCatalogo ? 'Seleccione el código SFC.' : 'Escriba el valor que se usará.';
-    else if (definicion) {
+    if (vacio) {
+      // Sin valor destino: el campo queda vacío.
+    } else if (!codigo?.trim()) {
+      errs.codigo = esCatalogo
+        ? 'Seleccione el código SFC.'
+        : admiteVacio
+          ? 'Escriba el valor que se usará, o marque "Dejar el campo vacío".'
+          : 'Escriba el valor que se usará.';
+    } else if (definicion) {
       const formato = validarValorDestino(definicion.tipoValor, codigo);
       if (formato) errs.codigo = formato;
     }
@@ -133,7 +147,7 @@ export default function DialogEquivalencia({
       catalogo: definicion.catalogo,
       campo: definicion.campo,
       valorOriginal: valorOriginal.trim(),
-      codigo: codigo!.trim(),
+      codigo: vacio ? '' : codigo!.trim(),
       observaciones: observaciones.trim() || null,
     };
     try {
@@ -257,20 +271,40 @@ export default function DialogEquivalencia({
               )}
             />
           ) : (
-            <TextField
-              label={definicion.tipoValor === 'fecha' ? 'Fecha que se usará' : 'Valor que se usará'}
-              value={codigo ?? ''}
-              onChange={e => {
-                setCodigo(e.target.value);
-                setCodigoTocado(true);
-                limpiarError('codigo');
-              }}
-              error={!!erroresCampo.codigo}
-              helperText={erroresCampo.codigo ?? ayudaCodigo}
-              inputProps={{ maxLength: 20 }}
-              size="small"
-              required
-            />
+            <Stack spacing={0.5}>
+              <TextField
+                label={definicion.tipoValor === 'fecha' ? 'Fecha que se usará' : 'Valor que se usará'}
+                value={vacio ? '' : (codigo ?? '')}
+                onChange={e => {
+                  setCodigo(e.target.value);
+                  setCodigoTocado(true);
+                  limpiarError('codigo');
+                }}
+                error={!!erroresCampo.codigo}
+                helperText={
+                  erroresCampo.codigo ?? (vacio ? 'El campo quedará sin valor en la carga.' : ayudaCodigo)
+                }
+                inputProps={{ maxLength: 20 }}
+                disabled={vacio}
+                size="small"
+                required={!vacio}
+              />
+              {admiteVacio && (
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={dejarVacio}
+                      onChange={e => {
+                        setDejarVacio(e.target.checked);
+                        limpiarError('codigo');
+                      }}
+                    />
+                  }
+                  label="Dejar el campo vacío (por ejemplo, para N/D o NO APLICA en un campo opcional)"
+                />
+              )}
+            </Stack>
           )}
 
           <TextField

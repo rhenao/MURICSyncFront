@@ -170,9 +170,15 @@ export default function ListEquivalencias() {
       Cell: ({ row }) =>
         // Por campo no hay descripción: el valor es un número o una fecha.
         row.original.campo ? (
-          <Typography variant="body2">
-            <strong>{row.original.codigo}</strong>
-          </Typography>
+          row.original.codigo === '' ? (
+            <Typography variant="body2" color="text.secondary">
+              <em>(vacío)</em>
+            </Typography>
+          ) : (
+            <Typography variant="body2">
+              <strong>{row.original.codigo}</strong>
+            </Typography>
+          )
         ) : row.original.codigoDescripcion !== null ? (
           <Typography variant="body2">
             <strong>{row.original.codigo}</strong> – {row.original.codigoDescripcion}

@@ -14,7 +14,7 @@ export interface Equivalencia extends Ambito {
   catalogoNombre: string;    // nombre del catálogo o del campo: "Tipo de identificación", "Spread tasa de interés"
   valorOriginal: string;
   valorNormalizado: string;  // mayúsculas, sin tildes ni espacios sobrantes; es lo que se compara al cargar
-  codigo: string;            // código SFC, o número o fecha del campo
+  codigo: string;            // código SFC, o número o fecha del campo; "" = el campo queda vacío
   codigoDescripcion: string | null; // por catálogo: null si el código ya no existe en él; por campo: siempre null
   observaciones: string | null;
   usuario: string | null;
@@ -41,6 +41,7 @@ export type TipoValorEquivalencia = 'codigo' | 'numero' | 'fecha';
 export interface CatalogoEquivalencia extends Ambito {
   nombre: string;
   tipoValor: TipoValorEquivalencia;
+  obligatorio: boolean; // solo campos: si es false, una equivalencia puede dejarlo vacío (código "")
   campos: string[]; // campos de staging que lo usan; los atributos van como "atributo_N"
   valores: ValorCatalogo[]; // vacío en los campos
 }

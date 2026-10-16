@@ -159,7 +159,7 @@ export default function PanelCodigosInvalidos({
                         {creada ? (
                           <Chip
                             icon={<CheckCircleOutlineIcon />}
-                            label={`→ ${creada.codigo} ${creada.codigoDescripcion ?? ''}`}
+                            label={`→ ${creada.codigo === '' ? '(vacío)' : creada.codigo} ${creada.codigoDescripcion ?? ''}`}
                             size="small"
                             color="success"
                             variant="outlined"

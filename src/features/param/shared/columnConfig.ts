@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { Chip, type ChipProps } from "@mui/material";
 import type { MRT_ColumnDef } from "material-react-table";
 
@@ -15,6 +15,9 @@ export interface ColumnConfig {
   header: string;
   size: number;
   nullFallback?: string;
+  // Celda calculada a partir de la fila (por ejemplo, un valor compuesto que el API no trae). Con hideInForm,
+  // la columna solo existe en la tabla.
+  render?: (row: Row) => ReactNode;
 
   // --- Metadatos de formulario: solo los usa ListaGeneralCrud ---
   fieldType?: FieldType; // por defecto "text"
@@ -32,7 +35,9 @@ export function toMrtColumns(columns: ColumnConfig[]): MRT_ColumnDef<Row>[] {
     accessorKey: col.accessorKey,
     header: col.header,
     size: col.size,
-    ...(col.options != null
+    ...(col.render != null
+      ? { Cell: ({ row }) => col.render!(row.original) }
+      : col.options != null
       ? {
           Cell: ({ cell }) => {
             const value = cell.getValue<string | number | null>();

@@ -93,11 +93,11 @@ export default function RegistrosLote() {
       (datos?.columnas ?? []).map(col => ({
         id: col.campo,
         header: col.titulo,
-        accessorFn: fila => fila.valores[col.campo] ?? '',
+        accessorFn: fila => fila.valores?.[col.campo] ?? '',
         size: col.campo === 'fila' ? 70 : 170,
         Cell: ({ row }) => {
-          const valor = row.original.valores[col.campo];
-          const errores = row.original.errores.filter(e => e.campo === col.campo);
+          const valor = row.original.valores?.[col.campo];
+          const errores = (row.original.errores ?? []).filter(e => e.campo === col.campo);
           if (errores.length === 0) return valor ?? '';
           const esError = errores.some(e => e.severidad === 'Error');
           return (
@@ -193,7 +193,10 @@ export default function RegistrosLote() {
       <MaterialReactTable
         columns={columnas}
         data={datos?.filas ?? []}
-        getRowId={fila => fila.numerosFila.join('-') || (fila.valores['identificacion_credito_entidad'] ?? '')}
+        // Mientras carga, la tabla usa filas esqueleto sin numerosFila ni valores: se identifican por posición.
+        getRowId={(fila, indice) =>
+          fila.numerosFila?.length ? fila.numerosFila.join('-') : `fila-${indice}`
+        }
         rowCount={datos?.total ?? 0}
         manualPagination
         manualFiltering
@@ -223,7 +226,7 @@ export default function RegistrosLote() {
         }}
         muiTableBodyCellProps={{ sx: { fontSize: '0.85rem', whiteSpace: 'nowrap' } }}
         muiTableBodyRowProps={({ row }) => {
-          const errores = row.original.errores;
+          const errores = row.original.errores ?? [];
           if (errores.length === 0) return { hover: true };
           const esError = errores.some(e => e.severidad === 'Error');
           return {

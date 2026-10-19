@@ -35,3 +35,43 @@ export interface FiltroLotes {
   fechaCorteHasta?: string;
   universalidadCodigo?: number;
 }
+
+// ── Registros cargados del lote (GET /cargas/{id}/registros; plan de registros de lote) ──
+
+export type InsumoRegistros = '001-001' | '001-002' | '001-003';
+
+export interface FiltroRegistros {
+  insumo: InsumoRegistros;
+  pagina: number; // desde 1
+  tamano: number; // 10 a 500
+  buscar?: string; // contiene, en número de crédito o de identificación
+  soloConErrores?: boolean;
+}
+
+export interface ColumnaRegistro {
+  campo: string;  // campo de staging: "identificacion_credito_entidad", "atributo_2"…
+  titulo: string; // en atributos, "2 · Nombres"
+}
+
+export interface ErrorCelda {
+  campo: string;
+  severidad: string; // "Error" | "Advertencia"
+  codigoRegla: string;
+  mensaje: string;
+}
+
+/** Una fila de staging; en atributos, todas las de un crédito (una columna por atributo). */
+export interface FilaRegistro {
+  numerosFila: number[];
+  valores: Record<string, string | null>;
+  errores: ErrorCelda[];
+}
+
+export interface RegistrosLote {
+  insumo: InsumoRegistros;
+  total: number;
+  pagina: number;
+  tamano: number;
+  columnas: ColumnaRegistro[];
+  filas: FilaRegistro[];
+}

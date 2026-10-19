@@ -21,6 +21,7 @@ import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import NotesIcon from '@mui/icons-material/Notes';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import TableRowsIcon from '@mui/icons-material/TableRows';
 import {
   ESTADO_LOTE_COLOR,
   ESTADOS_ACTIVOS,
@@ -179,15 +180,22 @@ export default function ListLotes() {
     },
     {
       id: 'acciones',
-      header: 'Abrir',
-      size: 70,
+      header: 'Acciones',
+      size: 100,
       enableSorting: false,
       Cell: ({ row }) => (
-        <Tooltip title={`Abrir el lote #${row.original.id}`}>
-          <IconButton size="small" onClick={() => navigate(`/app/carga-archivos/${row.original.id}`)}>
-            <OpenInNewIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        <Stack direction="row" spacing={0.5}>
+          <Tooltip title={`Abrir el lote #${row.original.id}`}>
+            <IconButton size="small" onClick={() => navigate(`/app/carga-archivos/${row.original.id}`)}>
+              <OpenInNewIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={`Ver los registros cargados del lote #${row.original.id}`}>
+            <IconButton size="small" onClick={() => navigate(`/app/lotes-carga/${row.original.id}/registros`)}>
+              <TableRowsIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
       ),
     },
   ];

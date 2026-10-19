@@ -41,6 +41,7 @@ import CargaArchivos from "./features/upload/components/CargaArchivos.tsx";
 import ListPlantillas from "./features/upload/components/ListPlantillas";
 import ListEquivalencias from "./features/upload/components/ListEquivalencias";
 import ListLotes from "./features/upload/components/ListLotes";
+import RegistrosLote from "./features/upload/components/RegistrosLote";
 import EnviaMURIC from "./features/submission/components/EnviaMURIC";
 import RequireAuth from "./features/auth/components/RequireAuth";
 import RequireRole from "./features/auth/components/RequireRole";
@@ -203,6 +204,15 @@ export default function AppRoutes() {
           element={
             <RequirePermission requiredPermissions={["cargas.read"]}>
               <ListLotes />
+            </RequirePermission>
+          }
+        />
+        {/* Registros cargados (staging) de un lote, en cualquier estado (plan de registros de lote). */}
+        <Route
+          path="/app/lotes-carga/:id/registros"
+          element={
+            <RequirePermission requiredPermissions={["cargas.read"]}>
+              <RegistrosLote />
             </RequirePermission>
           }
         />

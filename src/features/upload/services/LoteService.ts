@@ -1,5 +1,5 @@
 import axiosSecurityAPIClient from '../../../api/axiosSecurityAPIClient';
-import type { FiltroLotes, LoteResumen } from '../models/Lote.model';
+import type { FiltroLotes, FiltroRegistros, LoteResumen, RegistrosLote } from '../models/Lote.model';
 
 // api/cargas vive en la misma API que security (base /api).
 const LoteService = {
@@ -11,6 +11,25 @@ const LoteService = {
     });
     return Array.isArray(data) ? data : [];
   },
+
+  async obtener(id: number): Promise<LoteResumen> {
+    const { data } = await axiosSecurityAPIClient.get<LoteResumen>(`/cargas/${id}`);
+    return data;
+  },
+
+  /** Una página de los registros cargados (staging) de un insumo, en cualquier estado del lote. */
+  async registros(id: number, filtro: FiltroRegistros): Promise<RegistrosLote> {
+    const { data } = await axiosSecurityAPIClient.get<RegistrosLote>(`/cargas/${id}/registros`, { params: filtro });
+    return data;
+  },
 };
+
+/** Query string de /cargas/{id}/registros/exportar: el insumo completo con el filtro actual, sin paginar. */
+export function queryExportarRegistros(filtro: Omit<FiltroRegistros, 'pagina' | 'tamano'>): string {
+  const params = new URLSearchParams({ insumo: filtro.insumo });
+  if (filtro.buscar) params.set('buscar', filtro.buscar);
+  if (filtro.soloConErrores) params.set('soloConErrores', 'true');
+  return params.toString();
+}
 
 export default LoteService;
